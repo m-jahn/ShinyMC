@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Run R shiny app for MC data analysis
+Terminal=false
+Name=ShinyMC
+Exec=R -e "library(shiny); runApp('/media/transfer/multicultivator/ShinyMC', launch.browser=TRUE)"
+Type=Application
+Name[en_US]=ShinyMC-server
+Icon=/home/multicultivator/Downloads/icons/robot.svg
