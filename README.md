@@ -1,6 +1,5 @@
 # ShinyMC
-R Shiny based interface for monitoring bioreactors
-
+### R Shiny based interface for monitoring bioreactors
 
 ShinyMC is a small App for monitoring bioreactor experiments. Its purpose is to keep track of ongoing cultivations in MC-1000-OD bioreactors from Photon System Intruments (PSI, CZ). Other sensors can be connected to ShinyMC as well via import of text-based measurement files. Currently, ShinyMC supports the following features:
 
@@ -19,7 +18,8 @@ ShinyMC consists of a set of R scripts that determine the functionality.
 
 ### Input data
 
-ShinyMC uses *.csv tables that are imported as data.frames. Valid databases are named according to the scheme 'YYYYMMDD_MCX_measurements.csv'. It also imports CO2 sensor measurements named 'YYYYMMDD_MCX_CO2.txt'.
+- ShinyMC uses *.csv tables that are imported as data.frames. Valid databases are named according to the scheme 'YYYYMMDD_MCX_measurements.csv'
+- It also imports CO2 sensor measurements named 'YYYYMMDD_MCX_CO2.txt'
 
 ### Getting started
 
