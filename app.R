@@ -409,7 +409,7 @@ server <- shinyServer(function(input, output) {
     input$UserButtonCO2
     # read csv tables of user selection
     data <- read.table(input$UserCO2Choice, head=FALSE, sep=" ", 
-      col.names=c("co2", "co2_corr", "date", "time"))
+      col.names=c("co2", "co2_corr", "sensor", "date", "time"))
     data$batchtime_h <- strptime(with(data, paste(date, time)),
       format="%Y-%m-%d %H:%M")
     data$batchtime_h <- difftime(data$batchtime_h, data[1, "batchtime_h"], units="hours")
@@ -422,6 +422,7 @@ server <- shinyServer(function(input, output) {
     # actual plot is drawn
     CO2plot <- xyplot(co2/1000 ~ as.numeric(batchtime_h), data,
       par.settings=theme, 
+      groups=sensor, auto.key=list(columns=length(unique(data$sensor))),
       xlab="time [h]", ylab="% CO2",
       type=input$UserODType, lwd=2,
       panel=function(x, y, ...) {
