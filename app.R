@@ -10,7 +10,7 @@ library(lattice)
 library(latticeExtra)
 library(tidyr)
 library(plyr)
-source("intervalMu.R")
+source("calculateMu.R")
 # rm(list=ls())
 # define some global variables like
 # directory of raw data
@@ -144,6 +144,7 @@ ui <- shinyUI(fluidPage(
       tabsetPanel(
         tabPanel("OD", uiOutput("ODplot.ui")),
         tabPanel("Growthrate", uiOutput("MUplot.ui")),
+        tabPanel("Retention", uiOutput("RTplot.ui")),
         tabPanel("Temp", uiOutput("Tempplot.ui")),
         tabPanel("CO2", uiOutput("CO2plot.ui"),
         
@@ -174,6 +175,9 @@ server <- shinyServer(function(input, output) {
   })
   output$MUplot.ui <- renderUI({
     plotOutput("MUplot", height=input$UserPrintHeight*100)
+  })
+  output$RTplot.ui <- renderUI({
+    plotOutput("RTplot", height=input$UserPrintHeight*100)
   })
   output$Tempplot.ui <- renderUI({
     plotOutput("Tempplot", height=input$UserPrintHeight*100)
@@ -252,8 +256,8 @@ server <- shinyServer(function(input, output) {
     # filter by selected channels and OD720
     data <- subset(data, channel_id %in% input$UserChannelCheck & od_led=="720" &
       batchtime_h > input$UserXlim[[1]] & batchtime_h < input$UserXlim[[2]])
+    
     # set log or lin flag and adjust scales accordingly
-
     scaleoptions=list(
       alternating=FALSE, 
       x=list(limits=input$UserXlim),
@@ -265,74 +269,8 @@ server <- shinyServer(function(input, output) {
       theme <- ggplot2like() else
       theme <- theEconomist.theme()
     
-    # choose between batch and continuous cultivation
-    # first, mu for continuous cultivation and determination via dilution
-    if (input$UserMuType == "conti - dilution") {
-      # sum up dilutions over user-selected time frame (mu.time) 
-      # using integer division %/%
-      mu.time <- as.numeric(input$UserMuTime)
-      mu <- as.data.frame(with(data,
-        tapply(dilution, list(batchtime_h %/% mu.time * mu.time, 
-          channel_id), sum)
-      ))
-      # multiply number of dilutions with dilution factor (V_dil/V_total)
-      mu <- mu * input$UserDilFactor / mu.time
-      mu$batchtime_h <- as.numeric(rownames(mu))
-      # remove inaccurate last value
-      mu <- mu[-nrow(mu), ]
-      # reshape to long data.frame
-      mu <- gather(mu, channel_id, value, -batchtime_h)
-    }
-    
-    # second, mu for continuous cultiv. and determination via interval growth
-    if (input$UserMuType == "conti - interval") {
-      
-      # growth rate is calculated by applying interval µ function 
-      # for each channel individually
-      mu <- by(data, data$channel_id, function(data) {
-        # fitting an lm() linear model to each interval 
-        # between minimum and maximum
-        interval.mu(data$batchtime_h, data$od_value, 
-          input$UserMinSelect, input$UserMaxInterval)
-      })
-      
-      # convert to data.frame
-      mu <- ldply(lapply(mu, as.data.frame))
-      mu <- as.data.frame(apply(mu, 2, function(x) as.numeric(unlist(x))))
-      colnames(mu) <- c("channel_id", "rowNumb", "batchtime_h", "od_value", 
-        "value", "r.squared", "length_int", "residuals")
-      # filter determined growth rates by r.squared and min length of interval
-      # as a quality criterion
-      mu <- subset(mu, r.squared > input$UserRsquared & length_int >= 4)
-    }
-    
-    # third, batch mode
-    if (input$UserMuType == "batch mode") {
-      
-      # calculate growth rate per time by using linear model lm()
-      #define time period for mu determination
-      mu.time <- as.numeric(input$UserMuTime)
-      
-      # first summarize values per hour for simplicity, then apply model
-      mu <- with(data, {
-        df <- tapply(od_value, list(round(batchtime_h), channel_id), mean)
-        apply(df, 2, function(x) {
-          sapply(1:(length(x)-mu.time), function(rownumber) {
-            # select OD by given time range
-            OD <- log(x[rownumber:(rownumber+mu.time)])
-            OD <- OD[!is.na(OD)]
-            # linear model that calculates slope = spec growth rate µ
-            mu.model <- lm(y ~ x, data.frame(y=OD, x=1:length(OD)))
-            coefficients(mu.model)[[2]]
-          })
-        })
-      })
-      # transform to df and add time
-      mu <- as.data.frame(mu)
-      mu$batchtime_h <- unique(round(data$batchtime_h))[1:nrow(mu)]
-      # reshape to long data.frame
-      mu <- gather(mu, key=batchtime_h); colnames(mu)[2] <- "channel_id"
-    }
+    # call function for mu calculation
+    mu <- calculate.mu(data, input)
     
     # draw dotplot of mu
     MUplot <- xyplot(value ~ batchtime_h | factor(channel_id), mu,
@@ -376,52 +314,124 @@ server <- shinyServer(function(input, output) {
     })
   })
   
-  output$Tempplot <- renderPlot(res=120, {
-    
+  output$RTplot <- renderPlot(res=120, {
+
     # read csv tables of user selection
     data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
+    # filter by selected channels and OD720
+    data <- subset(data, channel_id %in% input$UserChannelCheck & od_led=="720" &
+      batchtime_h > input$UserXlim[[1]] & batchtime_h < input$UserXlim[[2]])
+
+    # set log or lin flag and adjust scales accordingly
+    scaleoptions=list(
+      alternating=FALSE, 
+      x=list(limits=input$UserXlim),
+      y=list(limits=c(0, 60))
+    )
     
     # select theme
     if (input$UserThemeCheck=="ggplot2 theme")
       theme <- ggplot2like() else
       theme <- theEconomist.theme()
-      
+    
+    # call function for mu calculation
+    mu <- calculate.mu(data, input)
+    mu <- subset(mu, value >0)
+    mu$t_doubling <- log(2)/mu$value
+    mu$t_retention <- 1/mu$value
+    
+    # draw dotplot of mu
+    RTplot <- xyplot(t_doubling + t_retention ~ batchtime_h | factor(channel_id), mu,
+      layout=eval(parse(text=input$UserPanelLayout)), 
+      scales=scaleoptions, as.table=TRUE, 
+      auto.key=list(columns=2),
+      par.settings=theme,
+      xlab="time [h]", ylab="t_R / t_D [h]",
+      type=input$UserMuPlot, lwd=2,
+      panel=function(x, y, ...) {
+        xlims <- round(input$UserXlim, -1)
+        ylims <- round(input$UserMUYlim, 2)
+        panel.abline(v=seq(xlims[1], xlims[2], by=10), col=grey(0.95))
+        panel.abline(h=seq(ylims[1], ylims[2], by=0.01), col=grey(0.95))
+        panel.grid(h=-1, v=-1, col=grey(0.95))
+        panel.superpose(x, y, ...)
+      },
+      panel.groups=function(x, y, ...) {
+        panel.xyplot(x, y, ...)
+        if (any(input$UserMuPlot %in% "t")) {
+          panel.ablineq(h=mean(y), fontfamily="FreeSans", pos=3, offset=3, cex=0.8,
+            label=paste(
+              round(mean(y), 1),"\U00B1",
+              round(sd(y), 1)
+            )
+          )
+        }
+        if (any(input$UserMuPlot %in% "sm")) {
+          try(silent=TRUE,
+            panel.loess(x, y, span=input$UserLoess, col="#00BA38", ...))
+        }
+      }
+    )
+
+    print(RTplot)
+  })
+  
+  output$Tempplot <- renderPlot(res=120, {
+
+    # read csv tables of user selection
+    data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
+    # filter by selected channels and OD720
+    data <- subset(data, channel_id %in% input$UserChannelCheck & od_led=="720" &
+      batchtime_h > input$UserXlim[[1]] & batchtime_h < input$UserXlim[[2]])
+
+    # set log or lin flag and adjust scales accordingly
+    scaleoptions=list(
+      alternating=FALSE, 
+      x=list(limits=input$UserXlim),
+      y=list(limits=c(0, 50))
+    )
+    
+    # select theme
+    if (input$UserThemeCheck=="ggplot2 theme")
+      theme <- ggplot2like() else
+      theme <- theEconomist.theme()
+
     # plot temperature chart
     temp <- xyplot(temperature ~ as.numeric(batchtime_h) | factor(channel_id), data,
-      par.settings=theme, ylim=c(0, 50),
+      par.settings=theme, 
+      scales=scaleoptions, as.table=TRUE,
       layout=eval(parse(text=input$UserPanelLayout)),
-      as.table=TRUE, scales=list(alternating=FALSE),
       xlab="time [h]", ylab="T [*C]",
       type=input$UserODType, lwd=2,
       panel=function(x, y, ...) {
         panel.grid(h=-1, v=-1, col=grey(0.95))
         panel.xyplot(x, y, ...)
-        panel.text(mean(x), tail(y, 1), labels=paste0("current T = ", round(tail(y, 1), 2), " *C"), 
+        panel.text(mean(x), tail(y, 1), labels=paste0("current T = ", round(tail(y, 1), 2), " *C"),
           pos=3, offset=1, cex=0.8, col=1)
       }
     )
     print(temp)
-    
+
   })
-  
+
   output$CO2plot <- renderPlot(res=120, {
-    
+
     input$UserButtonCO2
     # read csv tables of user selection
-    data <- read.table(input$UserCO2Choice, head=FALSE, sep=" ", 
+    data <- read.table(input$UserCO2Choice, head=FALSE, sep=" ",
       col.names=c("co2", "co2_corr", "sensor", "date", "time"))
     data$batchtime_h <- strptime(with(data, paste(date, time)),
       format="%Y-%m-%d %H:%M")
     data$batchtime_h <- difftime(data$batchtime_h, data[1, "batchtime_h"], units="hours")
-    
+
     # select theme
     if (input$UserThemeCheck=="ggplot2 theme")
       theme <- ggplot2like() else
       theme <- theEconomist.theme()
-    
+
     # actual plot is drawn
     CO2plot <- xyplot(co2/1000 ~ as.numeric(batchtime_h), data,
-      par.settings=theme, 
+      par.settings=theme,
       groups=sensor, auto.key=list(columns=length(unique(data$sensor))),
       xlab="time [h]", ylab="% CO2",
       type=input$UserODType, lwd=2,
