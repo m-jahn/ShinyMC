@@ -432,7 +432,8 @@ server <- shinyServer(function(input, output) {
     # actual plot is drawn
     CO2plot <- xyplot(co2/1000 ~ as.numeric(batchtime_h), data,
       par.settings=theme,
-      groups=sensor, auto.key=list(columns=length(unique(data$sensor))),
+      groups=sensor, 
+      auto.key=list(cex=0.8, columns=length(unique(data$sensor))),
       xlab="time [h]", ylab="% CO2",
       type=input$UserODType, lwd=2,
       panel=function(x, y, ...) {
