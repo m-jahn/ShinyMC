@@ -321,24 +321,24 @@ server <- shinyServer(function(input, output) {
     # filter by selected channels and OD720
     data <- subset(data, channel_id %in% input$UserChannelCheck & od_led=="720" &
       batchtime_h > input$UserXlim[[1]] & batchtime_h < input$UserXlim[[2]])
-
-    # set log or lin flag and adjust scales accordingly
-    scaleoptions=list(
-      alternating=FALSE, 
-      x=list(limits=input$UserXlim),
-      y=list(limits=c(0, 60))
-    )
-    
-    # select theme
-    if (input$UserThemeCheck=="ggplot2 theme")
-      theme <- ggplot2like() else
-      theme <- theEconomist.theme()
     
     # call function for mu calculation
     mu <- calculate.mu(data, input)
     mu <- subset(mu, value >0)
     mu$t_doubling <- log(2)/mu$value
     mu$t_retention <- 1/mu$value
+    
+    # set log or lin flag and adjust scales accordingly
+    scaleoptions=list(
+      alternating=FALSE, 
+      x=list(limits=input$UserXlim),
+      y=list(limits=c(0, 1.4*median(mu$t_retention)))
+    )
+    
+    # select theme
+    if (input$UserThemeCheck=="ggplot2 theme")
+      theme <- ggplot2like() else
+      theme <- theEconomist.theme()
     
     # draw dotplot of mu
     RTplot <- xyplot(t_doubling + t_retention ~ batchtime_h | factor(channel_id), mu,
@@ -359,7 +359,7 @@ server <- shinyServer(function(input, output) {
       panel.groups=function(x, y, ...) {
         panel.xyplot(x, y, ...)
         if (any(input$UserMuPlot %in% "t")) {
-          panel.ablineq(h=mean(y), fontfamily="FreeSans", pos=3, offset=3, cex=0.8,
+          panel.ablineq(h=mean(y), fontfamily="FreeSans", pos=3, offset=1, cex=0.8,
             label=paste(
               round(mean(y), 1),"\U00B1",
               round(sd(y), 1)
