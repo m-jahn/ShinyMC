@@ -332,7 +332,8 @@ server <- shinyServer(function(input, output) {
     scaleoptions=list(
       alternating=FALSE, 
       x=list(limits=input$UserXlim),
-      y=list(limits=c(0, 1.4*median(mu$t_retention)))
+      y=list(limits=c(0, 
+        1.4*max(tapply(mu$t_retention, mu$channel_id, median))))
     )
     
     # select theme
