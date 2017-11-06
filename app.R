@@ -419,11 +419,15 @@ server <- shinyServer(function(input, output) {
 
     input$UserButtonCO2
     # read csv tables of user selection
-    data <- read.table(input$UserCO2Choice, head=FALSE, sep=" ",
+    data <- read.table(input$UserCO2Choice, head=FALSE, sep=" ", fill=TRUE,
       col.names=c("co2", "co2_corr", "sensor", "date", "time"))
+    # filter out lines with missing values
+    data <- subset(data, apply(data, 1, function(x) !any(is.na(x)))) 
+    data$sensor <- factor(data$sensor, unique(data$sensor))
     data$batchtime_h <- strptime(with(data, paste(date, time)),
       format="%Y-%m-%d %H:%M")
     data$batchtime_h <- difftime(data$batchtime_h, data[1, "batchtime_h"], units="hours")
+    
 
     # select theme
     if (input$UserThemeCheck=="ggplot2 theme")
