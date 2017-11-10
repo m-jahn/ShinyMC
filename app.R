@@ -146,6 +146,7 @@ ui <- shinyUI(fluidPage(
         tabPanel("Growthrate", uiOutput("MUplot.ui")),
         tabPanel("Retention", uiOutput("RTplot.ui")),
         tabPanel("Temp", uiOutput("Tempplot.ui")),
+        tabPanel("OD correction", uiOutput("ODcorrection.ui")),
         tabPanel("CO2", uiOutput("CO2plot.ui"),
         
         # additional user controls for CO2 file
@@ -184,6 +185,9 @@ server <- shinyServer(function(input, output) {
   })
   output$CO2plot.ui <- renderUI({
     plotOutput("CO2plot", height=input$UserPrintHeight*50)
+  })
+  output$ODcorrection.ui <- renderUI({
+    tableOutput("ODcorrtable")
   })
   
   # plot data using xyplot from lattice package, 
@@ -412,9 +416,27 @@ server <- shinyServer(function(input, output) {
       }
     )
     print(temp)
-
   })
-
+  
+  output$ODcorrtable <- renderTable(digits=4, {
+    
+    # OD CORRECTION
+    # ***********************************************
+    # Per channel and per wavelength OD correction based on
+    # first n hour's measurements
+    
+    # read csv tables of user selection
+    data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
+    
+    ODcorr <- with(subset(data, batchtime_h <= 1), {
+      # calculate median per channel and led...
+      ODcorr.table <- tapply(od_value, list(channel_id, od_led), median)
+      # and subtract raw OD values from mean to obtain correction factor
+      apply(ODcorr.table, 2, function(x) mean(x)-x)
+    })
+    ODcorr
+  })
+  
   output$CO2plot <- renderPlot(res=120, {
 
     input$UserButtonCO2

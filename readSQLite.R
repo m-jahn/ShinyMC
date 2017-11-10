@@ -56,32 +56,6 @@ for (SQliteFile in dblist) {
     cat("\nNo turbidostat data in this database\n")
 
 
-  # OD CORRECTION
-  # ***********************************************
-  # Per channel and per wavelength OD correction based on
-  # first n hour's measurements
-  ODcorr <- with(subset(dat, batchtime_h <= 1), {
-    # calculate median per channel and led and ...
-    ODcorr.table <- tapply(od_value, list(channel_id, od_led), median)
-    ODcorr.table <- gather(as.data.frame(ODcorr.table), od_led, od_value)
-    # subtract raw OD values from mean to obtain correction factor
-    ODcorr <- with(ODcorr.table, 
-      tapply(od_value, od_led, function(x) {
-        mean(x)-x
-      })
-    )
-    ODcorr
-  })
-  print(ODcorr)
-
-  # the actual channel-wise correction is applied as formula y = m*x
-  ODcorr.func <- function(x, chan, wl) {
-    x+ODcorr[[wl]][chan]
-  }
-  # iteratively applied to every element of x with recycled arguments channel annd wavelength
-  dat$od_value_corr <- mapply(ODcorr.func, x=dat$od_value, chan=1:8, wl=rep(c("680","720"), each=8))
-  
-
   # EXPORT DATA
   # ***********************************************
   # first construct filename from original db name
