@@ -18,13 +18,25 @@ def connectSens(serialID):
     return serial.Serial(port=serialID, timeout=1)
 
 
-# take one measurement and format ouput
+# calibrate zero using nitrogen and take 5 test measurements
 def calibrateToN2(sensor):
+    # take series of 5 measurements BEFORE calibration
+    print('CO2 concentration before calibration... ')
+    for i in range(1,6):
+        sensor.write('Q\r\n')
+        # read measurement from sensor cache and print
+        read = sensor.readline()
+        # re-format reads
+        read = re.sub('\r\n|.Z.|.z', '', read)[0:5]
+        print(read)
+        time.sleep(1)
+    #
     # ask sensor to calibrate to N2
     sensor.write('U\r\n')
     print('Calibration done, message: ' + sensor.readline())
     time.sleep(1)
-    # request series of 5 measurements and print mean CO2 conc
+    #
+    # take series of 5 measurements AFTER calibration and print mean CO2 conc
     print('Performing test measurement... ')
     reads = list()
     for i in range(1,6):
