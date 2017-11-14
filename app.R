@@ -428,12 +428,18 @@ server <- shinyServer(function(input, output) {
     # read csv tables of user selection
     data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
     
-    ODcorr <- with(subset(data, batchtime_h <= 1), {
-      # calculate median per channel and led...
-      ODcorr.table <- tapply(od_value, list(channel_id, od_led), median)
-      # and subtract raw OD values from mean to obtain correction factor
-      apply(ODcorr.table, 2, function(x) mean(x)-x)
+    ODcorr <- sapply(1:3, function(i) {
+      with(subset(data, batchtime_h <= i), {
+        # calculate median per channel and led...
+        ODtable <- tapply(od_value, list(channel_id, od_led), median)
+        # and subtract raw OD values from mean to obtain correction factor
+        apply(ODtable, 2, function(x) mean(x)-x)
+      })
     })
+    ODcorr <- as.data.frame(ODcorr)
+    colnames(ODcorr) <- c("Correct_1h", "Correct_2h", "Correct_3h")
+    ODcorr$Wavelength <- rep(c(680, 720), each=8)
+    ODcorr$Channel <- rep(1:8, 2)
     ODcorr
   })
   
@@ -445,7 +451,6 @@ server <- shinyServer(function(input, output) {
       col.names=c("co2", "co2_corr", "sensor", "date", "time"))
     # filter out lines with missing values
     data <- subset(data, apply(data, 1, function(x) !any(is.na(x)))) 
-    data$sensor <- factor(data$sensor, unique(data$sensor))
     data$batchtime_h <- strptime(with(data, paste(date, time)),
       format="%Y-%m-%d %H:%M")
     data$batchtime_h <- difftime(data$batchtime_h, data[1, "batchtime_h"], units="hours")
