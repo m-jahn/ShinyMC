@@ -44,9 +44,10 @@ calculate.mu <- function(data, input) {
         # compute interval between two local maxima
         intervals <-
           mapply(seq, c(1, max.pos[-length(max.pos)] + 1), max.pos)
-        # position of minimum +3, to avoid underestimation of µ at turning point
+        # determine minimum as local minimum of the interval
+        # to correct for lag phases
         min.pos <- unlist(lapply(intervals, function(iv)
-          iv[which.min(y[iv])])) + 3
+          iv[which.min(y[iv])])) 
       } else {
         # or alternatively, minimum is n steps backward from max, user defined
         max.pos <- max.pos[max.pos > as.numeric(UserMinSelect)]
@@ -98,7 +99,7 @@ calculate.mu <- function(data, input) {
       )
     # filter determined growth rates by r.squared and min length of interval
     # as a quality criterion
-    mu <- subset(mu, r.squared > input$UserRsquared & length_int >= 4)
+    mu <- subset(mu, r.squared > input$UserRsquared & length_int >= 3)
   }
   
   # third, batch mode

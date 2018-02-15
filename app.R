@@ -115,12 +115,12 @@ ui <- shinyUI(fluidPage(
         fluidRow(
           column(width=6, 
             selectInput("UserMinSelect",
-              "Interval length:", c("auto", 4:7,10,15,20), selected="auto")
+              "Interval length:", c("auto", 2:7,10,15,20), selected="auto")
           )
         )
       ),
       sliderInput("UserMUYlim", 
-        "Y scale range:", min=0, max=0.2, step=0.01, value=c(-0.01, 0.1)),
+        "Y scale range:", min=0, max=0.5, step=0.01, value=c(-0.01, 0.1)),
       sliderInput("UserLoess", 
         "Loess smoothing:", min=0, max=1, step=0.1, value=0.4),
       fluidRow(
