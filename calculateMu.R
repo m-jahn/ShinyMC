@@ -127,8 +127,7 @@ calculate.mu <- function(data, input) {
     mu <- as.data.frame(mu)
     mu$batchtime_h <- unique(round(data$batchtime_h))[1:nrow(mu)]
     # reshape to long data.frame
-    mu <- gather(mu, key = batchtime_h)
-    colnames(mu)[2] <- "channel_id"
+    mu <- gather(mu, key="channel_id", value="value", -batchtime_h)
   }
   mu
 }
