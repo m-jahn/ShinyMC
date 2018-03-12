@@ -52,7 +52,7 @@ ui <- shinyUI(fluidPage(
       fluidRow(
         column(width=12, 
           selectInput("UserPanelLayout", 
-            "Panel layout (columns, rows):", choices=list("c(1,4)", "c(1,8)", "c(2,4)", "c(4,2)", "c(8,1)", "c(4,1)"),
+            "Panel layout (columns, rows):", choices=list("c(1,4)", "c(2,2)", "c(4,1)", "c(1,8)", "c(2,4)", "c(4,2)", "c(8,1)"),
             selected="c(4,2)")
         )
       ),
