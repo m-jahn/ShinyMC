@@ -40,7 +40,7 @@ calculate.mu <- function(data, input) {
       max.pos <- localMaxima(y)
       
       # positions of local minimum in intervals
-      if (UserMinSelect == "auto") {
+      if (UserMinSelect %in% c("auto", "min-max")) {
         # compute interval between two local maxima
         intervals <-
           mapply(seq, c(1, max.pos[-length(max.pos)] + 1), max.pos)
@@ -56,7 +56,12 @@ calculate.mu <- function(data, input) {
       
       # determine growth rate in intervals from local minima to maxima
       t(mapply(function(min.pos, max.pos) {
-        index <- seq(min.pos, max.pos)
+        # in most simple case, only min and max are considered
+        if (UserMinSelect == "min-max") {
+          index <- c(min.pos, max.pos)} 
+        else {
+          index <- seq(min.pos, max.pos)
+        }
         index <- index[y[index] > 0]
         model <- lm(log(y) ~ x, data.frame(x = x[index], y = y[index]))
         list(
@@ -99,7 +104,9 @@ calculate.mu <- function(data, input) {
       )
     # filter determined growth rates by r.squared and min length of interval
     # as a quality criterion
-    mu <- subset(mu, r.squared > input$UserRsquared & length_int >= 3)
+    if (input$UserMinSelect != "min-max") {
+      mu <- subset(mu, r.squared > input$UserRsquared & length_int >= 3)
+    }
   }
   
   # third, batch mode

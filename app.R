@@ -115,7 +115,7 @@ ui <- shinyUI(fluidPage(
         fluidRow(
           column(width=6, 
             selectInput("UserMinSelect",
-              "Interval length:", c("auto", 2:7,10,15,20), selected="auto")
+              "Interval length:", c("auto", "min-max", 2:7,10,15,20), selected="auto")
           )
         )
       ),
@@ -237,7 +237,6 @@ server <- shinyServer(function(input, output) {
           col=grey(0.7), cex=0.2)
         }
         if (panel.number()==1) {
-          print(input$UserXlim[1])
           panel.text(input$UserXlim[1], input$UserYlim[2]*0.85, cex=0.5, col=grey(0.4),
             pos=4, labels=paste0("last measurement: \n", data[nrow(data), "time"]))
         }
