@@ -14,7 +14,12 @@ source("calculateMu.R")
 # rm(list=ls())
 # define some global variables like
 # directory of raw data
-datadir <- gsub(".ShinyMC", "", getwd())
+if (grepl("multicultivator/ShinyMC", getwd())) {
+  datadir <- gsub(".ShinyMC", "", getwd())
+} else {
+  datadir <- "/media/transfer/multicultivator/"
+}
+
 # make list of database files in data folder
 datalistfiles <- list.files(datadir, pattern="measurements.csv", full.names=TRUE, 
   recursive=TRUE)
