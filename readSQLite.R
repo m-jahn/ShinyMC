@@ -32,7 +32,16 @@ for (SQliteFile in dblist) {
     # change number of vessels from 0-7 to 1-8
     dat$channel_id <- as.numeric(dat$channel_id)+1
     
-    } else
+    # optional correction of OD readings by using a modified inverse Gompertz 
+    # function. The fit has been obtained by a correlation curve between PR and MC
+    OD_PR <- function(x, alpha, beta, gamma, k) -log(-log((x-gamma)/alpha)/beta)/k
+    # apply function for 680 and 720 nm separately
+    dat$od_corr <- OD_PR(x=log(dat$od_value),
+      alpha=-9.7834454, beta=1.9832230, gamma=1.2797354, k=-0.2858521) %>% exp
+    dat[dat$od_led==720, "od_corr"] <- OD_PR(x=log(dat[dat$od_led==720, "od_value"]), 
+      alpha=-8.9527641, beta=2.2338071, gamma=0.6507006, k=-0.3088536) %>% exp
+    
+  } else
   stop("\nNo measurements in this database")
   
   if (any(dbListTables(db) %in% "turbidostat")) {

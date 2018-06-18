@@ -63,13 +63,17 @@ ui <- shinyUI(fluidPage(
       ),
       hr(),
       h4("OD plot options"),
-      column(width=6,
+      column(width=4,
         checkboxGroupInput("UserODType", 
           "Points, lines:", choices=c("p","l"), selected="l", inline=TRUE)
       ),
-      column(width=6,
+      column(width=4,
+        selectInput("UserODCorrect", 
+          "correct OD:", choices=c(TRUE, FALSE), selected=FALSE)
+      ),
+      column(width=4,
         selectInput("UserLogY",
-          "Choose Y axis type:", c("linear", "logarithmic"), selected="linear")
+          "Y axis type:", c("linear", "logarithmic"), selected="linear")
       ),
       conditionalPanel(condition="input.UserLogY=='linear'",
         sliderInput("UserYlim", 
@@ -204,6 +208,7 @@ server <- shinyServer(function(input, output) {
     # filter by selected channels
     data <- subset(data, channel_id %in% input$UserChannelCheck)
     
+    
     # set log or lin flag and adjust scales accordingly
     if (input$UserLogY=="linear")
       scaleoptions=list(
@@ -224,8 +229,14 @@ server <- shinyServer(function(input, output) {
       theme <- theEconomist.theme()
     
     
+    # select OD correction
+    if(input$UserODCorrect) 
+      od_select <- 'od_corr' else
+      od_select <- 'od_value'
+    
+    
     # actual plot is drawn
-    ODplot <- xyplot(od_value ~ as.numeric(batchtime_h) | factor(channel_id), data,
+    ODplot <- xyplot(get(od_select) ~ as.numeric(batchtime_h) | factor(channel_id), data,
       groups=od_led, par.settings=theme, 
       layout=eval(parse(text=input$UserPanelLayout)), 
       auto.key=list(columns=2), 
