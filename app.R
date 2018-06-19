@@ -10,7 +10,7 @@ library(lattice)
 library(latticeExtra)
 library(tidyr)
 library(plyr)
-#source("calculateMu.R")
+source("calculateMu.R")
 # rm(list=ls())
 # define some global variables like
 # directory of raw data
