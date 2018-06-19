@@ -10,7 +10,7 @@ library(lattice)
 library(latticeExtra)
 library(tidyr)
 library(plyr)
-source("calculateMu.R")
+#source("calculateMu.R")
 # rm(list=ls())
 # define some global variables like
 # directory of raw data
@@ -293,8 +293,13 @@ server <- shinyServer(function(input, output) {
       theme <- ggplot2like() else
       theme <- theEconomist.theme()
     
+    # select OD correction
+    if(input$UserODCorrect) 
+      od_select <- 'od_corr' else
+      od_select <- 'od_value'
+    
     # call function for mu calculation
-    mu <- calculate.mu(data, input)
+    mu <- calculate.mu(data, input, od_select)
     
     # draw dotplot of mu
     MUplot <- xyplot(value ~ batchtime_h | factor(channel_id), mu,

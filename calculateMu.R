@@ -1,7 +1,7 @@
 ## CACULATE GROWTH RATE IN THREE DIFFERENT WAYS (BATCH, DILUTIONS, INTERVALS)
 #
 #
-calculate.mu <- function(data, input) {
+calculate.mu <- function(data, input, od_select) {
   # first, mu for continuous cultivation and determination via dilution
   if (input$UserMuType == "conti - dilution") {
     # sum up dilutions over user-selected time frame (mu.time)
@@ -82,7 +82,7 @@ calculate.mu <- function(data, input) {
       # fitting an lm() linear model to each interval
       # between minimum and maximum
       interval.mu(data$batchtime_h,
-        data$od_value,
+        data[[od_select]],
         input$UserMinSelect,
         input$UserMaxInterval)
     })
@@ -96,7 +96,7 @@ calculate.mu <- function(data, input) {
         "channel_id",
         "rowNumb",
         "batchtime_h",
-        "od_value",
+        od_select,
         "value",
         "r.squared",
         "length_int",
@@ -117,7 +117,7 @@ calculate.mu <- function(data, input) {
     
     # first summarize values per hour for simplicity, then apply model
     mu <- with(data, {
-      df <- tapply(od_value, list(round(batchtime_h), channel_id), mean)
+      df <- tapply(get(od_select), list(round(batchtime_h), channel_id), mean)
       apply(df, 2, function(x) {
         sapply(1:(length(x) - mu.time), function(rownumber) {
           # select OD by given time range
