@@ -77,11 +77,11 @@ ui <- shinyUI(fluidPage(
       ),
       conditionalPanel(condition="input.UserLogY=='linear'",
         sliderInput("UserYlim", 
-          "Y scale range:", min=-0.2, max=2, step=0.05, value=c(-0.1, 1))
+          "Y scale range:", min=-0.2, max=10, step=0.05, value=c(-0.1, 1))
       ),
       conditionalPanel(condition="input.UserLogY=='logarithmic'",
         sliderInput("UserYlimLog", 
-          "Y scale range:", min=0.01, max=4, step=0.01, value=c(0.01, 1))
+          "Y scale range:", min=0.01, max=10, step=0.05, value=c(0.01, 1))
       ),
       sliderInput("UserXlim", 
         "X scale range:", min=0, max=500, step=5, value=c(0, 100)),
