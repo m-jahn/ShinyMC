@@ -55,10 +55,18 @@ ui <- shinyUI(fluidPage(
       checkboxGroupInput("UserChannelCheck", 
         "Select Channels:", choices=1:8, selected=1:8, inline=TRUE),
       fluidRow(
-        column(width=12, 
+        column(width=4, 
           selectInput("UserPanelLayout", 
-            "Panel layout (columns, rows):", choices=list("c(1,4)", "c(2,2)", "c(4,1)", "c(1,8)", "c(2,4)", "c(4,2)", "c(8,1)"),
+            "Panel layout:", choices=list("c(1,4)", "c(2,2)", "c(4,1)", "c(1,8)", "c(2,4)", "c(4,2)", "c(8,1)"),
             selected="c(4,2)")
+        ),
+        column(width=4, 
+          numericInput("UserPrintWidth",
+            "Plot width:", value=8)
+        ),
+        column(width=4, 
+          numericInput("UserPrintHeight",
+            "Plot height:", value=6)
         )
       ),
       hr(),
@@ -131,35 +139,39 @@ ui <- shinyUI(fluidPage(
       sliderInput("UserMUYlim", 
         "Y scale range:", min=0, max=0.5, step=0.01, value=c(-0.01, 0.1)),
       sliderInput("UserLoess", 
-        "Loess smoothing:", min=0, max=1, step=0.1, value=0.4),
-      fluidRow(
-        column(width=4, 
-          numericInput("UserPrintWidth",
-            "W:", value=8)
-        ),
-        column(width=4, 
-          numericInput("UserPrintHeight",
-            "H:", value=6)
-        ),
-        column(width=4, p("to /Desktop:"),
-          actionButton("UserButtonPrint", 
-            "save SVG")
-        )
-      )
+        "Loess smoothing:", min=0, max=1, step=0.1, value=0.4)
     ),
     
-    # Show plots
+    # Show plots on extra tabs
+    # Each tab has individual Download buttons
     column(width=8,
       tabsetPanel(
-        tabPanel("OD", uiOutput("ODplot.ui")),
-        tabPanel("Growthrate", uiOutput("MUplot.ui")),
-        tabPanel("Retention", uiOutput("RTplot.ui")),
-        tabPanel("Temp", uiOutput("Tempplot.ui")),
-        tabPanel("OD correction", uiOutput("ODcorrection.ui")),
-        tabPanel("CO2", uiOutput("CO2plot.ui"),
+        tabPanel("OD", uiOutput("ODplot.ui"),
+          downloadButton("UserDownloadOD", "Download svg")
+        ),
         
+        tabPanel("Growthrate", uiOutput("MUplot.ui"),
+          downloadButton("UserDownloadMU", "Download svg"),
+          downloadButton("UserDownloadMUdat", "Download table")
+        ),
+        
+        tabPanel("Retention", uiOutput("RTplot.ui"),
+          downloadButton("UserDownloadRT", "Download svg"),
+          downloadButton("UserDownloadRTdat", "Download table")
+        ),
+        
+        tabPanel("Temp", uiOutput("Tempplot.ui"),
+          downloadButton("UserDownloadTemp", "Download svg")
+        ),
+        
+        tabPanel("OD correction", uiOutput("ODcorrection.ui"),
+          downloadButton("UserDownloadODcorr", "Download table")
+        ),
+        
+        tabPanel("CO2", uiOutput("CO2plot.ui"),
         # additional user controls for CO2 file
           fluidRow(
+            column(width=2, downloadButton("UserDownloadCO2", "Download svg")),
             column(width=8,
               selectInput("UserCO2Choice", width="100%",
               NULL, co2files, selected=tail(co2files, 1))),
@@ -264,14 +276,17 @@ server <- shinyServer(function(input, output) {
     )
     
     print(ODplot)
-    observeEvent(input$UserButtonPrint, {
-      print("saving SVG")
-      svg(filename="~/Desktop/ODplot.svg", 
-        width=input$UserPrintWidth, height=input$UserPrintHeight)
-      print(ODplot)
-      dev.off()
-    })
-   })
+    
+    output$UserDownloadOD <- downloadHandler(
+      filename="ODplot.svg",
+      content = function(file) {
+        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        print(ODplot)
+        dev.off()
+      },
+      contentType="image/svg"
+    )
+  })
   
   output$MUplot <- renderPlot(res=120, {
     
@@ -333,14 +348,23 @@ server <- shinyServer(function(input, output) {
     )
     
     print(MUplot)
-    observeEvent(input$UserButtonPrint, {
-      print("saving SVG")
-      svg(filename="~/Desktop/MUplot.svg", 
-        width=input$UserPrintWidth, height=input$UserPrintHeight)
-      print(MUplot)
-      write.csv(mu, file="~/Desktop/mu.csv")
-      dev.off()
-    })
+    
+    output$UserDownloadMU <- downloadHandler(
+      filename="MUplot.svg",
+      content = function(file) {
+        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        print(MUplot)
+        dev.off()
+      },
+      contentType="image/svg"
+    )
+    output$UserDownloadMUdat <- downloadHandler(
+      filename="MU.csv",
+      content = function(file) {
+        write.csv(mu, file)
+      },
+      contentType="text/csv"
+    )
   })
   
   output$RTplot <- renderPlot(res=120, {
@@ -351,11 +375,25 @@ server <- shinyServer(function(input, output) {
     data <- subset(data, channel_id %in% input$UserChannelCheck & od_led=="720" &
       batchtime_h > input$UserXlim[[1]] & batchtime_h < input$UserXlim[[2]])
     
+    
+    # select theme
+    if (input$UserThemeCheck=="ggplot2 theme")
+      theme <- ggplot2like() else
+      theme <- theEconomist.theme()
+    
+    
+    # select OD correction
+    if(input$UserODCorrect) 
+      od_select <- 'od_corr' else
+      od_select <- 'od_value'
+    
+    
     # call function for mu calculation
-    mu <- calculate.mu(data, input)
+    mu <- calculate.mu(data, input, od_select)
     mu <- subset(mu, value >0)
     mu$t_doubling <- log(2)/mu$value
     mu$t_retention <- 1/mu$value
+    
     
     # set log or lin flag and adjust scales accordingly
     scaleoptions=list(
@@ -364,12 +402,7 @@ server <- shinyServer(function(input, output) {
       y=list(limits=c(0, 
         1.4*max(tapply(mu$t_retention, mu$channel_id, median))))
     )
-    
-    # select theme
-    if (input$UserThemeCheck=="ggplot2 theme")
-      theme <- ggplot2like() else
-      theme <- theEconomist.theme()
-    
+
     # draw dotplot of mu
     RTplot <- xyplot(t_doubling + t_retention ~ batchtime_h | factor(channel_id), mu,
       layout=eval(parse(text=input$UserPanelLayout)), 
@@ -404,6 +437,23 @@ server <- shinyServer(function(input, output) {
     )
 
     print(RTplot)
+    
+    output$UserDownloadRT <- downloadHandler(
+      filename="RTplot.svg",
+      content = function(file) {
+        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        print(RTplot)
+        dev.off()
+      },
+      contentType="image/svg"
+    )
+    output$UserDownloadRTdat <- downloadHandler(
+      filename="RT.csv",
+      content = function(file) {
+        write.csv(mu, file)
+      },
+      contentType="text/csv"
+    )
   })
   
   output$Tempplot <- renderPlot(res=120, {
@@ -440,7 +490,18 @@ server <- shinyServer(function(input, output) {
           pos=3, offset=1, cex=0.8, col=1)
       }
     )
+    
     print(temp)
+    
+    output$UserDownloadTemp <- downloadHandler(
+      filename="Tempplot.svg",
+      content = function(file) {
+        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        print(temp)
+        dev.off()
+      },
+      contentType="image/svg"
+    )
   })
   
   output$ODcorrtable <- renderTable(digits=4, {
@@ -465,6 +526,16 @@ server <- shinyServer(function(input, output) {
     colnames(ODcorr) <- c("Correct_1h", "Correct_2h", "Correct_3h")
     ODcorr$Wavelength <- rep(c(680, 720), each=8)
     ODcorr$Channel <- rep(1:8, 2)
+    
+    
+    output$UserDownloadODcorr <- downloadHandler(
+      filename="ODcorr.csv",
+      content = function(file) {
+        write.csv(ODcorr, file)
+      },
+      contentType="text/csv"
+    )
+    
     ODcorr
   })
   
@@ -500,7 +571,23 @@ server <- shinyServer(function(input, output) {
       }
     )
     CO2plot2 <- xyplot(co2*10 ~ as.numeric(batchtime_h), type=NA, data, ylab="ppm CO2")
-    print(doubleYScale(CO2plot, CO2plot2, use.style=FALSE, add.axis=TRUE, add.ylab2=TRUE)
+    
+    print(
+      doubleYScale(CO2plot, CO2plot2, 
+        use.style=FALSE, add.axis=TRUE, add.ylab2=TRUE)
+    )
+    
+    output$UserDownloadCO2 <- downloadHandler(
+      filename="CO2plot.svg",
+      content = function(file) {
+        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        print(
+          doubleYScale(CO2plot, CO2plot2, 
+          use.style=FALSE, add.axis=TRUE, add.ylab2=TRUE)
+        )
+        dev.off()
+      },
+      contentType="image/svg"
     )
   })
 })
