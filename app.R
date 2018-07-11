@@ -72,12 +72,12 @@ ui <- shinyUI(navbarPage(
             selected="c(4,2)")
         ),
         column(width=4, 
-          numericInput("UserPrintWidth",
-            "Plot width:", value=8)
+          selectInput("UserPrintWidth",
+              "Plot width:", choices=c("auto", 1:10*100), selected="auto")
         ),
         column(width=4, 
-          numericInput("UserPrintHeight",
-            "Plot height:", value=6)
+          selectInput("UserPrintHeight",
+            "Plot height:", choices=c(1:10*100), selected=700)
         )
       ),
       
@@ -224,19 +224,19 @@ server <- shinyServer(function(input, output) {
   # To control size of the plots, we need to wrap the ODplot and Muplot
   # into additional renderUI function that can take height argument
   output$ODplot.ui <- renderUI({
-    plotOutput("ODplot", height=input$UserPrintHeight*100)
+    plotOutput("ODplot", height=input$UserPrintHeight, width=input$UserPrintWidth)
   })
   output$MUplot.ui <- renderUI({
-    plotOutput("MUplot", height=input$UserPrintHeight*100)
+    plotOutput("MUplot", height=input$UserPrintHeight, width=input$UserPrintWidth)
   })
   output$RTplot.ui <- renderUI({
-    plotOutput("RTplot", height=input$UserPrintHeight*100)
+    plotOutput("RTplot", height=input$UserPrintHeight, width=input$UserPrintWidth)
   })
   output$Tempplot.ui <- renderUI({
-    plotOutput("Tempplot", height=input$UserPrintHeight*100)
+    plotOutput("Tempplot", height=input$UserPrintHeight, width=input$UserPrintWidth)
   })
   output$CO2plot.ui <- renderUI({
-    plotOutput("CO2plot", height=input$UserPrintHeight*50)
+    plotOutput("CO2plot", height=input$UserPrintHeight, width=input$UserPrintWidth)
   })
   output$ODcorrection.ui <- renderUI({
     tableOutput("ODcorrtable")
@@ -305,7 +305,10 @@ server <- shinyServer(function(input, output) {
     output$UserDownloadOD <- downloadHandler(
       filename="ODplot.svg",
       content = function(file) {
-        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        svg(file, 
+          width={if (input$UserPrintWidth=="auto") 7
+            else as.numeric(input$UserPrintWidth)/100}, 
+          height=as.numeric(input$UserPrintHeight)/100)
         print(ODplot)
         dev.off()
       },
@@ -377,7 +380,10 @@ server <- shinyServer(function(input, output) {
     output$UserDownloadMU <- downloadHandler(
       filename="MUplot.svg",
       content = function(file) {
-        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        svg(file, 
+          width={if (input$UserPrintWidth=="auto") 7
+            else as.numeric(input$UserPrintWidth)/100}, 
+          height=as.numeric(input$UserPrintHeight)/100)
         print(MUplot)
         dev.off()
       },
@@ -465,7 +471,10 @@ server <- shinyServer(function(input, output) {
     output$UserDownloadRT <- downloadHandler(
       filename="RTplot.svg",
       content = function(file) {
-        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        svg(file, 
+          width={if (input$UserPrintWidth=="auto") 7
+            else as.numeric(input$UserPrintWidth)/100}, 
+          height=as.numeric(input$UserPrintHeight)/100)
         print(RTplot)
         dev.off()
       },
@@ -517,7 +526,10 @@ server <- shinyServer(function(input, output) {
     output$UserDownloadTemp <- downloadHandler(
       filename="Tempplot.svg",
       content = function(file) {
-        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        svg(file, 
+          width={if (input$UserPrintWidth=="auto") 7
+            else as.numeric(input$UserPrintWidth)/100}, 
+          height=as.numeric(input$UserPrintHeight)/100)
         print(temp)
         dev.off()
       },
@@ -601,7 +613,10 @@ server <- shinyServer(function(input, output) {
     output$UserDownloadCO2 <- downloadHandler(
       filename="CO2plot.svg",
       content = function(file) {
-        svg(file, width=input$UserPrintWidth, height=input$UserPrintHeight)
+        svg(file, 
+          width={if (input$UserPrintWidth=="auto") 7
+            else as.numeric(input$UserPrintWidth)/100}, 
+          height=as.numeric(input$UserPrintHeight)/100)
         print(
           doubleYScale(CO2plot, CO2plot2, 
           use.style=FALSE, add.axis=TRUE, add.ylab2=TRUE)
