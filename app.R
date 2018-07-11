@@ -10,6 +10,7 @@ library(lattice)
 library(latticeExtra)
 library(tidyr)
 library(plyr)
+library(shinythemes)
 source("calculateMu.R")
 source("custom.themes.R")
 
