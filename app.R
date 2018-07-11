@@ -11,14 +11,16 @@ library(latticeExtra)
 library(tidyr)
 library(plyr)
 source("calculateMu.R")
-# rm(list=ls())
+source("custom.themes.R")
+
 # define some global variables like
 # directory of raw data
-if (grepl("multicultivator/ShinyMC", getwd())) {
-  datadir <- gsub(".ShinyMC", "", getwd())
-} else {
-  datadir <- "/media/transfer/multicultivator/"
+datadir={
+  if (grepl("multicultivator/ShinyMC", getwd())) gsub(".ShinyMC", "", getwd())
+  else if(dir.exists("/media/transfer/multicultivator/")) "/media/transfer/multicultivator/"
+  else "data/"
 }
+
 
 # make list of database files in data folder
 datalistfiles <- list.files(datadir, pattern="measurements.csv", full.names=TRUE, 
@@ -30,30 +32,38 @@ co2files <- list.files(datadir, pattern=".CO2.txt$", full.names=TRUE,
 # SHINY UI
 # ***********************************************
 # Define UI for application that draws a histogram
-ui <- shinyUI(fluidPage(
-   
-  # Application title
-  titlePanel("MC-1000-OD"),
-  # Sidebar with a slider input for number of bins 
+ui <- shinyUI(navbarPage(
+  
+   # Title on NavBar Header
+  "ShinyMC - interactive cultivation tools",
+  
+  # Use one of different shiny themes
+  theme=shinytheme("cosmo"),
+  #shinythemes::themeSelector(),
+  
+  # Sidebar
   sidebarLayout(
-    sidebarPanel(
+    
+    # HERE COME ALL CONTROLS FOR THE SIDEBAR PANEL
+    sidebarPanel(width=4,
+   
+      # SOME GENERAL PLOT OPTIONS
       selectInput("UserDataChoice",
         "Choose data file:", datalistfiles, 
         selected=tail(datalistfiles,1)),
+      
       fluidRow(
-        column(width=6,
-          selectInput("UserShowRatio", 
-            "Show 680/720 ratio:", choices=c("TRUE","FALSE"),
-            selected="FALSE")
+        column(width=8,
+          checkboxGroupInput("UserChannelCheck", 
+          "Select Channels:", choices=1:8, selected=1:8, inline=TRUE)
         ),
-        column(width=6,
-          selectInput("UserThemeCheck", 
-            "Select theme:", choices=c("ggplot2 theme", "lattice theme"), 
-            selected="ggplot2 theme")
+        column(width=4,
+          selectInput("UserTheme", 
+            "Select theme:", choices=c("lattice grey", "lattice blue", "ggplot1", "ggplot2"), 
+            selected="lattice grey")
         )
       ),
-      checkboxGroupInput("UserChannelCheck", 
-        "Select Channels:", choices=1:8, selected=1:8, inline=TRUE),
+      
       fluidRow(
         column(width=4, 
           selectInput("UserPanelLayout", 
@@ -69,8 +79,10 @@ ui <- shinyUI(fluidPage(
             "Plot height:", value=6)
         )
       ),
+      
+      # OD PLOT OPTIONS
       hr(),
-      h4("OD plot options"),
+      h4("OPTICAL DENSITY"),
       column(width=4,
         checkboxGroupInput("UserODType", 
           "Points, lines:", choices=c("p","l"), selected="l", inline=TRUE)
@@ -93,8 +105,10 @@ ui <- shinyUI(fluidPage(
       ),
       sliderInput("UserXlim", 
         "X scale range:", min=0, max=500, step=5, value=c(0, 100)),
+      
+      # GROWTH RATE OPTIONS
       hr(),
-      h4("µ plot options"),
+      h4("GROWTH RATE"),
       fluidRow(
         column(width=6,
           selectInput("UserMuType",
@@ -145,38 +159,40 @@ ui <- shinyUI(fluidPage(
     # Show plots on extra tabs
     # Each tab has individual Download buttons
     column(width=8,
-      tabsetPanel(
-        tabPanel("OD", uiOutput("ODplot.ui"),
-          downloadButton("UserDownloadOD", "Download svg")
-        ),
-        
-        tabPanel("Growthrate", uiOutput("MUplot.ui"),
-          downloadButton("UserDownloadMU", "Download svg"),
-          downloadButton("UserDownloadMUdat", "Download table")
-        ),
-        
-        tabPanel("Retention", uiOutput("RTplot.ui"),
-          downloadButton("UserDownloadRT", "Download svg"),
-          downloadButton("UserDownloadRTdat", "Download table")
-        ),
-        
-        tabPanel("Temp", uiOutput("Tempplot.ui"),
-          downloadButton("UserDownloadTemp", "Download svg")
-        ),
-        
-        tabPanel("OD correction", uiOutput("ODcorrection.ui"),
-          downloadButton("UserDownloadODcorr", "Download table")
-        ),
-        
-        tabPanel("CO2", uiOutput("CO2plot.ui"),
-        # additional user controls for CO2 file
-          fluidRow(
-            column(width=2, downloadButton("UserDownloadCO2", "Download svg")),
-            column(width=8,
-              selectInput("UserCO2Choice", width="100%",
-              NULL, co2files, selected=tail(co2files, 1))),
-            column(width=2, 
-              actionButton("UserButtonCO2", "Refresh")
+      wellPanel(
+        tabsetPanel(
+          tabPanel("OD", uiOutput("ODplot.ui"),
+            downloadButton("UserDownloadOD", "Download svg")
+          ),
+          
+          tabPanel("Growthrate", uiOutput("MUplot.ui"),
+            downloadButton("UserDownloadMU", "Download svg"),
+            downloadButton("UserDownloadMUdat", "Download table")
+          ),
+          
+          tabPanel("Retention", uiOutput("RTplot.ui"),
+            downloadButton("UserDownloadRT", "Download svg"),
+            downloadButton("UserDownloadRTdat", "Download table")
+          ),
+          
+          tabPanel("Temp", uiOutput("Tempplot.ui"),
+            downloadButton("UserDownloadTemp", "Download svg")
+          ),
+          
+          tabPanel("OD correction", uiOutput("ODcorrection.ui"),
+            downloadButton("UserDownloadODcorr", "Download table")
+          ),
+          
+          tabPanel("CO2", uiOutput("CO2plot.ui"),
+          # additional user controls for CO2 file
+            fluidRow(
+              column(width=2, downloadButton("UserDownloadCO2", "Download svg")),
+              column(width=8,
+                selectInput("UserCO2Choice", width="100%",
+                NULL, co2files, selected=tail(co2files, 1))),
+              column(width=2, 
+                actionButton("UserButtonCO2", "Refresh")
+              )
             )
           )
         )
@@ -189,6 +205,20 @@ ui <- shinyUI(fluidPage(
 # SHINY SERVER
 # ***********************************************
 server <- shinyServer(function(input, output) {
+  
+  # MAIN DATA IS LOADED
+  # the reactive environment makes sure all widgets can use the data
+  # without re-reading every time
+  data <- reactive({
+    
+    # read csv tables of user selection
+    data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
+    # filter by selected channels
+    data <- subset(data, channel_id %in% input$UserChannelCheck)
+    data
+  
+  })
+  
   
   # To control size of the plots, we need to wrap the ODplot and Muplot
   # into additional renderUI function that can take height argument
@@ -215,11 +245,6 @@ server <- shinyServer(function(input, output) {
   # that is made for multifactorial data
   output$ODplot <- renderPlot(res=120, {
     
-    # read csv tables of user selection
-    data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
-    # filter by selected channels
-    data <- subset(data, channel_id %in% input$UserChannelCheck)
-    
     
     # set log or lin flag and adjust scales accordingly
     if (input$UserLogY=="linear")
@@ -236,9 +261,10 @@ server <- shinyServer(function(input, output) {
     
 
     # select theme
-    if (input$UserThemeCheck=="ggplot2 theme")
-      theme <- ggplot2like() else
-      theme <- theEconomist.theme()
+    if (input$UserTheme=="ggplot1") theme <- ggplot2like()
+    else if (input$UserTheme=="ggplot2") theme <- custom.ggplot
+    else if (input$UserTheme=="lattice grey") theme <- custom.lattice
+    else if (input$UserTheme=="lattice blue") theme <- theEconomist.theme()
     
     
     # select OD correction
@@ -248,8 +274,8 @@ server <- shinyServer(function(input, output) {
     
     
     # actual plot is drawn
-    ODplot <- xyplot(get(od_select) ~ as.numeric(batchtime_h) | factor(channel_id), data,
-      groups=od_led, par.settings=theme, 
+    ODplot <- xyplot(get(od_select) ~ as.numeric(batchtime_h) | factor(channel_id), 
+      data(), groups=od_led, par.settings=theme, 
       layout=eval(parse(text=input$UserPanelLayout)), 
       auto.key=list(columns=2), 
       as.table=TRUE,
@@ -260,13 +286,11 @@ server <- shinyServer(function(input, output) {
         lims <- round(input$UserXlim, -1)
         panel.abline(v=seq(lims[1], lims[2], by=10), col=grey(0.95))
         panel.grid(h=-1, v=-1, col=grey(0.95))
-        if (input$UserShowRatio) {
         panel.xyplot(unique(x), y[seq(1, length(y), 2)]/y[seq(2, length(y), 2)], 
           col=grey(0.7), cex=0.2)
-        }
         if (panel.number()==1) {
           panel.text(input$UserXlim[1], input$UserYlim[2]*0.85, cex=0.5, col=grey(0.4),
-            pos=4, labels=paste0("last measurement: \n", data[nrow(data), "time"]))
+            pos=4, labels=paste0("last measurement: \n", data()[nrow(data()), "time"]))
         }
         panel.superpose(x, y, ...)
         },
@@ -290,10 +314,8 @@ server <- shinyServer(function(input, output) {
   
   output$MUplot <- renderPlot(res=120, {
     
-    # read csv tables of user selection
-    data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
-    # filter by selected channels and OD720
-    data <- subset(data, channel_id %in% input$UserChannelCheck & od_led=="720" &
+    # filter to OD720 only
+    data <- subset(data(), od_led=="720" &
       batchtime_h > input$UserXlim[[1]] & batchtime_h < input$UserXlim[[2]])
     
     # set log or lin flag and adjust scales accordingly
@@ -304,9 +326,11 @@ server <- shinyServer(function(input, output) {
     )
     
     # select theme
-    if (input$UserThemeCheck=="ggplot2 theme")
-      theme <- ggplot2like() else
-      theme <- theEconomist.theme()
+    if (input$UserTheme=="ggplot1") theme <- ggplot2like()
+    else if (input$UserTheme=="ggplot2") theme <- custom.ggplot
+    else if (input$UserTheme=="lattice grey") theme <- custom.lattice
+    else if (input$UserTheme=="lattice blue") theme <- theEconomist.theme()
+    
     
     # select OD correction
     if(input$UserODCorrect) 
@@ -369,17 +393,16 @@ server <- shinyServer(function(input, output) {
   
   output$RTplot <- renderPlot(res=120, {
 
-    # read csv tables of user selection
-    data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
     # filter by selected channels and OD720
-    data <- subset(data, channel_id %in% input$UserChannelCheck & od_led=="720" &
+    data <- subset(data(), od_led=="720" &
       batchtime_h > input$UserXlim[[1]] & batchtime_h < input$UserXlim[[2]])
     
     
     # select theme
-    if (input$UserThemeCheck=="ggplot2 theme")
-      theme <- ggplot2like() else
-      theme <- theEconomist.theme()
+    if (input$UserTheme=="ggplot1") theme <- ggplot2like()
+    else if (input$UserTheme=="ggplot2") theme <- custom.ggplot
+    else if (input$UserTheme=="lattice grey") theme <- custom.lattice
+    else if (input$UserTheme=="lattice blue") theme <- theEconomist.theme()
     
     
     # select OD correction
@@ -458,11 +481,6 @@ server <- shinyServer(function(input, output) {
   
   output$Tempplot <- renderPlot(res=120, {
 
-    # read csv tables of user selection
-    data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
-    # filter by selected channels and OD720
-    data <- subset(data, channel_id %in% input$UserChannelCheck & od_led=="720" &
-      batchtime_h > input$UserXlim[[1]] & batchtime_h < input$UserXlim[[2]])
 
     # set log or lin flag and adjust scales accordingly
     scaleoptions=list(
@@ -472,13 +490,15 @@ server <- shinyServer(function(input, output) {
     )
     
     # select theme
-    if (input$UserThemeCheck=="ggplot2 theme")
-      theme <- ggplot2like() else
-      theme <- theEconomist.theme()
+    if (input$UserTheme=="ggplot1") theme <- ggplot2like()
+    else if (input$UserTheme=="ggplot2") theme <- custom.ggplot
+    else if (input$UserTheme=="lattice grey") theme <- custom.lattice
+    else if (input$UserTheme=="lattice blue") theme <- theEconomist.theme()
 
+    
     # plot temperature chart
-    temp <- xyplot(temperature ~ as.numeric(batchtime_h) | factor(channel_id), data,
-      par.settings=theme, 
+    temp <- xyplot(temperature ~ as.numeric(batchtime_h) | factor(channel_id), 
+      subset(data(), od_led=="720"), par.settings=theme, 
       scales=scaleoptions, as.table=TRUE,
       layout=eval(parse(text=input$UserPanelLayout)),
       xlab="time [h]", ylab="T [*C]",
@@ -511,11 +531,9 @@ server <- shinyServer(function(input, output) {
     # Per channel and per wavelength OD correction based on
     # first n hour's measurements
     
-    # read csv tables of user selection
-    data <- read.csv(input$UserDataChoice, head=TRUE, row.names=1)
     
     ODcorr <- sapply(1:3, function(i) {
-      with(subset(data, batchtime_h <= i), {
+      with(subset(data(), batchtime_h <= i), {
         # calculate median per channel and led...
         ODtable <- tapply(od_value, list(channel_id, od_led), median)
         # and subtract raw OD values from mean to obtain correction factor
@@ -524,8 +542,8 @@ server <- shinyServer(function(input, output) {
     })
     ODcorr <- as.data.frame(ODcorr)
     colnames(ODcorr) <- c("Correct_1h", "Correct_2h", "Correct_3h")
-    ODcorr$Wavelength <- rep(c(680, 720), each=8)
-    ODcorr$Channel <- rep(1:8, 2)
+    ODcorr$Wavelength <- rep(c(680, 720), each=length(unique(data()[["channel_id"]])))
+    ODcorr$Channel <- rep(unique(data()[["channel_id"]]), 2)
     
     
     output$UserDownloadODcorr <- downloadHandler(
@@ -553,10 +571,12 @@ server <- shinyServer(function(input, output) {
     
 
     # select theme
-    if (input$UserThemeCheck=="ggplot2 theme")
-      theme <- ggplot2like() else
-      theme <- theEconomist.theme()
-
+    if (input$UserTheme=="ggplot1") theme <- ggplot2like()
+    else if (input$UserTheme=="ggplot2") theme <- custom.ggplot
+    else if (input$UserTheme=="lattice grey") theme <- custom.lattice
+    else if (input$UserTheme=="lattice blue") theme <- theEconomist.theme()
+    
+    
     # actual plot is drawn
     CO2plot <- xyplot(co2/1000 ~ as.numeric(batchtime_h), data,
       par.settings=theme,
