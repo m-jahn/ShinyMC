@@ -13,6 +13,7 @@ library(plyr)
 library(shinythemes)
 source("calculateMu.R")
 source("custom.themes.R")
+source("about.R")
 
 # define some global variables like
 # directory of raw data
@@ -33,173 +34,183 @@ co2files <- list.files(datadir, pattern=".CO2.txt$", full.names=TRUE,
 # SHINY UI
 # ***********************************************
 # Define UI for application that draws a histogram
+
 ui <- shinyUI(navbarPage(
   
    # Title on NavBar Header
-  "ShinyMC - interactive cultivation tools",
+  title="ShinyMC - interactive cultivation tools",
   
   # Use one of different shiny themes
   theme=shinytheme("cosmo"),
   #shinythemes::themeSelector(),
   
-  # Sidebar
-  sidebarLayout(
-    
-    # HERE COME ALL CONTROLS FOR THE SIDEBAR PANEL
-    sidebarPanel(width=4,
-   
-      # SOME GENERAL PLOT OPTIONS
-      selectInput("UserDataChoice",
-        "Choose data file:", datalistfiles, 
-        selected=tail(datalistfiles,1)),
+  tabPanel("App",
+  
+    # Sidebar
+    sidebarLayout(
       
-      fluidRow(
-        column(width=8,
-          checkboxGroupInput("UserChannelCheck", 
-          "Select Channels:", choices=1:8, selected=1:8, inline=TRUE)
+      # HERE COME ALL CONTROLS FOR THE SIDEBAR PANEL
+      sidebarPanel(width=4,
+     
+        # SOME GENERAL PLOT OPTIONS
+        selectInput("UserDataChoice",
+          "Choose data file:", datalistfiles, 
+          selected=tail(datalistfiles,1)),
+        
+        fluidRow(
+          column(width=8,
+            checkboxGroupInput("UserChannelCheck", 
+            "Select Channels:", choices=1:8, selected=1:8, inline=TRUE)
+          ),
+          column(width=4,
+            selectInput("UserTheme", 
+              "Select theme:", choices=c("lattice grey", "lattice blue", "ggplot1", "ggplot2"), 
+              selected="lattice grey")
+          )
+        ),
+        
+        fluidRow(
+          column(width=4, 
+            selectInput("UserPanelLayout", 
+              "Panel layout:", choices=list("c(1,4)", "c(2,2)", "c(4,1)", "c(1,8)", "c(2,4)", "c(4,2)", "c(8,1)"),
+              selected="c(4,2)")
+          ),
+          column(width=4, 
+            selectInput("UserPrintWidth",
+                "Plot width:", choices=c("auto", 1:10*100), selected="auto")
+          ),
+          column(width=4, 
+            selectInput("UserPrintHeight",
+              "Plot height:", choices=c(1:10*100), selected=700)
+          )
+        ),
+        
+        # OD PLOT OPTIONS
+        hr(),
+        h4("OPTICAL DENSITY"),
+        column(width=4,
+          checkboxGroupInput("UserODType", 
+            "Points, lines:", choices=c("p","l"), selected="l", inline=TRUE)
         ),
         column(width=4,
-          selectInput("UserTheme", 
-            "Select theme:", choices=c("lattice grey", "lattice blue", "ggplot1", "ggplot2"), 
-            selected="lattice grey")
-        )
-      ),
-      
-      fluidRow(
-        column(width=4, 
-          selectInput("UserPanelLayout", 
-            "Panel layout:", choices=list("c(1,4)", "c(2,2)", "c(4,1)", "c(1,8)", "c(2,4)", "c(4,2)", "c(8,1)"),
-            selected="c(4,2)")
+          selectInput("UserODCorrect", 
+            "correct OD:", choices=c(TRUE, FALSE), selected=FALSE)
         ),
-        column(width=4, 
-          selectInput("UserPrintWidth",
-              "Plot width:", choices=c("auto", 1:10*100), selected="auto")
+        column(width=4,
+          selectInput("UserLogY",
+            "Y axis type:", c("linear", "logarithmic"), selected="linear")
         ),
-        column(width=4, 
-          selectInput("UserPrintHeight",
-            "Plot height:", choices=c(1:10*100), selected=700)
-        )
-      ),
-      
-      # OD PLOT OPTIONS
-      hr(),
-      h4("OPTICAL DENSITY"),
-      column(width=4,
-        checkboxGroupInput("UserODType", 
-          "Points, lines:", choices=c("p","l"), selected="l", inline=TRUE)
-      ),
-      column(width=4,
-        selectInput("UserODCorrect", 
-          "correct OD:", choices=c(TRUE, FALSE), selected=FALSE)
-      ),
-      column(width=4,
-        selectInput("UserLogY",
-          "Y axis type:", c("linear", "logarithmic"), selected="linear")
-      ),
-      conditionalPanel(condition="input.UserLogY=='linear'",
-        sliderInput("UserYlim", 
-          "Y scale range:", min=-0.2, max=10, step=0.05, value=c(-0.1, 1))
-      ),
-      conditionalPanel(condition="input.UserLogY=='logarithmic'",
-        sliderInput("UserYlimLog", 
-          "Y scale range:", min=0.01, max=10, step=0.05, value=c(0.01, 1))
-      ),
-      sliderInput("UserXlim", 
-        "X scale range:", min=0, max=500, step=5, value=c(0, 100)),
-      
-      # GROWTH RATE OPTIONS
-      hr(),
-      h4("GROWTH RATE"),
-      fluidRow(
-        column(width=6,
-          selectInput("UserMuType",
-            "Type of cultivation:", c("batch mode", "conti - dilution", "conti - interval"), 
-            selected="batch mode")
+        conditionalPanel(condition="input.UserLogY=='linear'",
+          sliderInput("UserYlim", 
+            "Y scale range:", min=-0.2, max=10, step=0.05, value=c(-0.1, 1))
         ),
-        column(width=6,
-          checkboxGroupInput("UserMuPlot", 
-            "Points, lines, trend, smooth:", choices=c("p","l","t","sm"), selected="p", inline=TRUE)
-        )
-      ),
-      fluidRow(
-        column(width=6, 
-          conditionalPanel(condition="input.UserMuType=='conti - dilution' | input.UserMuType=='batch mode'",
-            selectInput("UserMuTime",
-              "t for µ estimation:", 2:10, selected=5)
+        conditionalPanel(condition="input.UserLogY=='logarithmic'",
+          sliderInput("UserYlimLog", 
+            "Y scale range:", min=0.01, max=10, step=0.05, value=c(0.01, 1))
+        ),
+        sliderInput("UserXlim", 
+          "X scale range:", min=0, max=500, step=5, value=c(0, 100)),
+        
+        # GROWTH RATE OPTIONS
+        hr(),
+        h4("GROWTH RATE"),
+        fluidRow(
+          column(width=6,
+            selectInput("UserMuType",
+              "Type of cultivation:", c("batch mode", "conti - dilution", "conti - interval"), 
+              selected="batch mode")
           ),
-          conditionalPanel(condition="input.UserMuType=='conti - interval'",
-            numericInput("UserMaxInterval",
-              "threshold max:", value=0.2, min=0, max=1)
+          column(width=6,
+            checkboxGroupInput("UserMuPlot", 
+              "Points, lines, trend, smooth:", choices=c("p","l","t","sm"), selected="p", inline=TRUE)
           )
         ),
-        column(width=6,
-          conditionalPanel(condition="input.UserMuType=='conti - dilution'",
-            numericInput("UserDilFactor",
-              "Dil factor:", value=0.1, min=0, max=1)
-          ),
-          conditionalPanel(condition="input.UserMuType=='conti - interval'",
-            numericInput("UserRsquared",
-              "R^2 filtering:", value=0.9, min=0, max=1)
-          )
-        )
-      ),
-      conditionalPanel(condition="input.UserMuType=='conti - interval'",
         fluidRow(
           column(width=6, 
-            selectInput("UserMinSelect",
-              "Interval length:", c("auto", "min-max", 2:7,10,15,20), selected="auto")
+            conditionalPanel(condition="input.UserMuType=='conti - dilution' | input.UserMuType=='batch mode'",
+              selectInput("UserMuTime",
+                "t for µ estimation:", 2:10, selected=5)
+            ),
+            conditionalPanel(condition="input.UserMuType=='conti - interval'",
+              numericInput("UserMaxInterval",
+                "threshold max:", value=0.2, min=0, max=1)
+            )
+          ),
+          column(width=6,
+            conditionalPanel(condition="input.UserMuType=='conti - dilution'",
+              numericInput("UserDilFactor",
+                "Dil factor:", value=0.1, min=0, max=1)
+            ),
+            conditionalPanel(condition="input.UserMuType=='conti - interval'",
+              numericInput("UserRsquared",
+                "R^2 filtering:", value=0.9, min=0, max=1)
+            )
           )
-        )
+        ),
+        conditionalPanel(condition="input.UserMuType=='conti - interval'",
+          fluidRow(
+            column(width=6, 
+              selectInput("UserMinSelect",
+                "Interval length:", c("auto", "min-max", 2:7,10,15,20), selected="auto")
+            )
+          )
+        ),
+        sliderInput("UserMUYlim", 
+          "Y scale range:", min=0, max=0.5, step=0.01, value=c(-0.01, 0.1)),
+        sliderInput("UserLoess", 
+          "Loess smoothing:", min=0, max=1, step=0.1, value=0.4)
       ),
-      sliderInput("UserMUYlim", 
-        "Y scale range:", min=0, max=0.5, step=0.01, value=c(-0.01, 0.1)),
-      sliderInput("UserLoess", 
-        "Loess smoothing:", min=0, max=1, step=0.1, value=0.4)
-    ),
-    
-    # Show plots on extra tabs
-    # Each tab has individual Download buttons
-    column(width=8,
-      wellPanel(
-        tabsetPanel(
-          tabPanel("OD", uiOutput("ODplot.ui"),
-            downloadButton("UserDownloadOD", "Download svg")
-          ),
-          
-          tabPanel("Growthrate", uiOutput("MUplot.ui"),
-            downloadButton("UserDownloadMU", "Download svg"),
-            downloadButton("UserDownloadMUdat", "Download table")
-          ),
-          
-          tabPanel("Retention", uiOutput("RTplot.ui"),
-            downloadButton("UserDownloadRT", "Download svg"),
-            downloadButton("UserDownloadRTdat", "Download table")
-          ),
-          
-          tabPanel("Temp", uiOutput("Tempplot.ui"),
-            downloadButton("UserDownloadTemp", "Download svg")
-          ),
-          
-          tabPanel("OD correction", uiOutput("ODcorrection.ui"),
-            downloadButton("UserDownloadODcorr", "Download table")
-          ),
-          
-          tabPanel("CO2", uiOutput("CO2plot.ui"),
-          # additional user controls for CO2 file
-            fluidRow(
-              column(width=2, downloadButton("UserDownloadCO2", "Download svg")),
-              column(width=8,
-                selectInput("UserCO2Choice", width="100%",
-                NULL, co2files, selected=tail(co2files, 1))),
-              column(width=2, 
-                actionButton("UserButtonCO2", "Refresh")
+      
+      # Show plots on extra tabs
+      # Each tab has individual Download buttons
+      column(width=8,
+        wellPanel(
+          tabsetPanel(
+            tabPanel("OD", uiOutput("ODplot.ui"),
+              downloadButton("UserDownloadOD", "Download svg")
+            ),
+            
+            tabPanel("Growthrate", uiOutput("MUplot.ui"),
+              downloadButton("UserDownloadMU", "Download svg"),
+              downloadButton("UserDownloadMUdat", "Download table")
+            ),
+            
+            tabPanel("Retention", uiOutput("RTplot.ui"),
+              downloadButton("UserDownloadRT", "Download svg"),
+              downloadButton("UserDownloadRTdat", "Download table")
+            ),
+            
+            tabPanel("Temp", uiOutput("Tempplot.ui"),
+              downloadButton("UserDownloadTemp", "Download svg")
+            ),
+            
+            tabPanel("OD correction", uiOutput("ODcorrection.ui"),
+              downloadButton("UserDownloadODcorr", "Download table")
+            ),
+            
+            tabPanel("CO2", uiOutput("CO2plot.ui"),
+            # additional user controls for CO2 file
+              fluidRow(
+                column(width=2, downloadButton("UserDownloadCO2", "Download svg")),
+                column(width=8,
+                  selectInput("UserCO2Choice", width="100%",
+                  NULL, co2files, selected=tail(co2files, 1))),
+                column(width=2, 
+                  actionButton("UserButtonCO2", "Refresh")
+                )
               )
             )
           )
         )
       )
     )
+  ),
+  
+  # THE ABOUT PAGE
+  tabPanel("About", 
+    helpbox(width=8)
   )
+  
 ))
 
 
