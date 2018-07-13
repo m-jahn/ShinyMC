@@ -1,4 +1,8 @@
 # ShinyMC
+
+Available on Shinyapps.io!
+https://m-jahn.shinyapps.io/ShinyMC/
+
 ### R Shiny based interface for monitoring bioreactors
 
 ShinyMC is a small App for monitoring bioreactor experiments. Its purpose is to keep track of ongoing cultivations in MC-1000-OD bioreactors from Photon System Intruments (PSI, CZ). Other sensors can be connected to ShinyMC as well via import of text-based measurement files. Currently, ShinyMC supports the following features:
@@ -26,15 +30,19 @@ ShinyMC consists of a set of R scripts that determine the functionality.
 To start ShinyMC, you need to have R (optionally also Rstudio) and some of its libraries installed, mainly:
 
 - shiny
-- RSQLite
+- shinythemes
 - lattice
 - latticeExtra
 - tidyr
 - plyr
+- (RSQLite)
 
-Open RStudio, change your working directory to a '.../multicultivator/ShinyMC' path and push the 'Run App' button
+Open app.R in RStudio and push the 'Run App' button
 
 OR
 
-Even simpler and for Linux users only, double click the 'ShinyMC' launcher in the /ShinyMC folder. If you want to see the results on the transfer server, double click 'ShinyMC-server'. 
+For Linux users, double click the 'ShinyMC' launcher in the /ShinyMC folder (adjust path if necessary).
 
+OR
+
+https://m-jahn.shinyapps.io/ShinyMC/
