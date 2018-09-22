@@ -18,8 +18,8 @@ source("about.R")
 # define some global variables like
 # directory of raw data
 datadir={
-  if (dir.exists("~/multicultivator/data/")) "~/multicultivator/data/"
-  else if(dir.exists("/media/transfer/multicultivator/")) "/media/transfer/multicultivator/"
+  if (dir.exists("/media/transfer/multicultivator/")) "/media/transfer/multicultivator/"
+  else if(dir.exists("~/multicultivator/data/")) "~/multicultivator/data/"
   else "data/"
 }
 
