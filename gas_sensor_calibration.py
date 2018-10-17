@@ -2,7 +2,7 @@
 # date: 2017-10-11
 # coding=utf-8
 """
-Connect to CO2 sensor and take one measurement
+Connect to all gas sensors and calibrate
 """
 # loading libraries
 import sys
