@@ -629,7 +629,7 @@ server <- shinyServer(function(input, output) {
     sensorTypes <- gsub("[0-9]$", "", data$sensor) %>% unique
     for (i in 1:length(sensorTypes)) {
       print(
-        drawGasPlot(subset(data, grepl(sensorTypes[[i]], sensor))), 
+        drawGasPlot(subset(data, grepl(paste0("^", sensorTypes[i]), sensor))), 
         split=c(1,i,1,length(sensorTypes)),
         more=TRUE
       )
