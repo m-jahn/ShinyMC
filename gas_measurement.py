@@ -1,5 +1,5 @@
 # author: Michael Jahn
-# date: 2017-10-10
+# date: 2018-10-18
 # coding=utf-8
 """
 Connect to all gas sensors and take one measurement
@@ -80,7 +80,7 @@ for gassensor in gassensors:
         elif re.match('ttyO2_[0-9]', gassensor):
             gasdata.write(MeasureO2(sensor))
         else: 
-            print('No CO sensor implemented')
+            gasdata.write(MeasureO2(sensor))
     # close connection
     sensor.close()
 

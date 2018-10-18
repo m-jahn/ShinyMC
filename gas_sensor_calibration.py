@@ -1,5 +1,5 @@
 # author: Michael Jahn
-# date: 2017-10-11
+# date: 2018-10-18
 # coding=utf-8
 """
 Connect to all gas sensors and calibrate
@@ -13,25 +13,33 @@ import time
 import numpy
 
 
+# GLOBAL PARAMETERS
+# attached sensors in /dev
+gassensors = filter(lambda x: re.match('ttyC?O2?_[0-9]', x), os.listdir('/dev'))
+# throw error when no sensor is connected
+if len(gassensors) == 0:
+    raise ValueError('No sensors connected. Check \'tty\' devices in /dev')
+
+
 # function to define and connect serial device
 def connectSens(serialID):
     return serial.Serial(port=serialID, timeout=1)
 
 
-# calibrate zero using nitrogen and take 5 test measurements
-def calibrateToN2(sensor):
+# calibrate to zero using nitrogen and take 5 test measurements
+def calibrateToN2(sensor, read_command):
     # take series of 5 measurements BEFORE calibration
-    print('CO2 concentration before calibration... ')
+    print('gas concentration before calibration... ')
     for i in range(1,6):
-        sensor.write('Q\r\n')
+        sensor.write(read_command)
         # read measurement from sensor cache and print
         read = sensor.readline()
         # re-format reads
-        read = re.sub('\r\n|.Z.|.z', '', read)[0:5]
+        read = re.sub('\r\n|.?Z.|.z', '', read)[0:5]
         print(read)
         time.sleep(1)
     #
-    # ask sensor to calibrate to N2
+    # ask sensor to zero-calibrate with N2
     sensor.write('U\r\n')
     print('Calibration done, message: ' + sensor.readline())
     time.sleep(1)
@@ -40,34 +48,33 @@ def calibrateToN2(sensor):
     print('Performing test measurement... ')
     reads = list()
     for i in range(1,6):
-        sensor.write('Q\r\n')
+        sensor.write(read_command)
         # read measurement from sensor cache and print
         read = sensor.readline()
         # re-format reads
-        read = re.sub('\r\n|.Z.|.z', '', read)[0:5]
+        read = re.sub('\r\n|.?Z.|.z', '', read)[0:5]
         print(read); reads.append(read)
         time.sleep(1)
     reads = [int(x) for x in reads]
     return numpy.mean(reads)
 
 
-# LOOP OVER ALL CO2 SENSORS AND CALIBRATE
-# function to find attached CO2 sensors in /dev
-co2sensors = filter(lambda x: 'ttyCO2' in x, os.listdir('/dev'))
-# throw error when no sensor is connected
-if len(co2sensors) == 0:
-    raise ValueError('No sensors named "ttyCO2" connected')
-
 # calibration loop
-for co2sensor in co2sensors:
-    sensor = connectSens('/dev/' + co2sensor)
+for gassensor in gassensors:
+    sensor = connectSens('/dev/' + gassensor)
     # check if connection is open
-    print('Connecting to sensor ' + co2sensor)
+    print('Connecting to sensor ' + gassensor)
     if not sensor.is_open: sensor.open()
     else: print("Connection already open")
     #
+    # checking type of gassensor to use correct commands
+    if re.match('ttyCO2_[0-9]', gassensor):
+        read_command='Q\r\n'
+    else:
+        read_command='Z\r\n'
+    #
     # zero calibrate to molecular nitrogen N2
-    meanConc = calibrateToN2(sensor) 
+    meanConc = calibrateToN2(sensor, read_command) 
     print('Mean CO2 after blanking: ' + str(meanConc*10) + ' ppm')
     #
     # close connection

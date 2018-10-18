@@ -27,7 +27,7 @@ datadir={
 # make list of database files in data folder
 datalistfiles <- list.files(datadir, pattern="measurements.csv", full.names=TRUE, 
   recursive=TRUE)
-co2files <- list.files(datadir, pattern=".CO2.txt$", full.names=TRUE, 
+gasfiles <- list.files(datadir, pattern=".(CO2|gas).txt$", full.names=TRUE, 
   recursive=TRUE)
 
 
@@ -188,15 +188,15 @@ ui <- shinyUI(navbarPage(
               downloadButton("UserDownloadODcorr", "Download table")
             ),
             
-            tabPanel("CO2", uiOutput("CO2plot.ui"),
-            # additional user controls for CO2 file
+            tabPanel("Gas analysis", uiOutput("Gasplot.ui"),
+            # additional user controls for gas measurement files
               fluidRow(
-                column(width=2, downloadButton("UserDownloadCO2", "Download svg")),
+                column(width=2, downloadButton("UserDownloadGas", "Download svg")),
                 column(width=8,
-                  selectInput("UserCO2Choice", width="100%",
-                  NULL, co2files, selected=tail(co2files, 1))),
+                  selectInput("UserGasChoice", width="100%",
+                  NULL, gasfiles, selected=tail(gasfiles, 1))),
                 column(width=2, 
-                  actionButton("UserButtonCO2", "Refresh")
+                  actionButton("UserButtonGas", "Refresh")
                 )
               )
             )
@@ -246,8 +246,8 @@ server <- shinyServer(function(input, output) {
   output$Tempplot.ui <- renderUI({
     plotOutput("Tempplot", height=input$UserPrintHeight, width=input$UserPrintWidth)
   })
-  output$CO2plot.ui <- renderUI({
-    plotOutput("CO2plot", height=input$UserPrintHeight, width=input$UserPrintWidth)
+  output$Gasplot.ui <- renderUI({
+    plotOutput("Gasplot", height=input$UserPrintHeight, width=input$UserPrintWidth)
   })
   output$ODcorrection.ui <- renderUI({
     tableOutput("ODcorrtable")
@@ -581,14 +581,15 @@ server <- shinyServer(function(input, output) {
     ODcorr
   })
   
-  output$CO2plot <- renderPlot(res=120, {
+  output$Gasplot <- renderPlot(res=120, {
 
-    input$UserButtonCO2
+    input$UserButtonGas
     # read csv tables of user selection
-    data <- read.table(input$UserCO2Choice, head=FALSE, sep=" ", fill=TRUE,
-      col.names=c("co2", "co2_corr", "sensor", "date", "time"))
+    data <- read.table(input$UserGasChoice, head=FALSE, sep=" ", fill=TRUE,
+      col.names=c("ppm_raw", "ppm_corrected", "sensor", "date", "time"))
     # filter out lines with missing values
-    data <- subset(data, apply(data, 1, function(x) !any(is.na(x)))) 
+    data <- subset(data, apply(data, 1, function(x) !any(is.na(x))))
+    data$sensor <- gsub("tty", "", data$sensor)
     data$batchtime_h <- strptime(with(data, paste(date, time)),
       format="%Y-%m-%d %H:%M")
     data$batchtime_h <- difftime(data$batchtime_h, data[1, "batchtime_h"], units="hours")
@@ -602,36 +603,53 @@ server <- shinyServer(function(input, output) {
     
     
     # actual plot is drawn
-    CO2plot <- xyplot(co2/1000 ~ as.numeric(batchtime_h), data,
-      par.settings=theme,
-      groups=sensor, 
-      auto.key=list(cex=0.8, columns=length(unique(data$sensor))),
-      xlab="time [h]", ylab="% CO2",
-      type=input$UserODType, lwd=2,
-      panel=function(x, y, ...) {
-        panel.abline(v=seq(round(min(x)), round(max(x)), by=1), col=grey(0.95))
-        panel.grid(h=-1, v=-1, col=grey(0.95))
-        panel.xyplot(x, y, ...)
-      }
-    )
-    CO2plot2 <- xyplot(co2*10 ~ as.numeric(batchtime_h), type=NA, data, ylab="ppm CO2")
-    
-    print(
-      doubleYScale(CO2plot, CO2plot2, 
+    drawGasPlot <- function(data){
+      
+      plot1 <- xyplot(ppm_corrected/1000 ~ as.numeric(batchtime_h), data,
+        par.settings=theme,
+        groups=factor(sensor), 
+        auto.key=list(cex=0.8, columns=length(unique(data$sensor))),
+        xlab="time [h]", ylab="% (v/v)",
+        type=input$UserODType, lwd=2,
+        panel=function(x, y, ...) {
+          panel.abline(v=seq(round(min(x)), round(max(x)), by=1), col=grey(0.95))
+          panel.grid(h=-1, v=-1, col=grey(0.95))
+          panel.xyplot(x, y, ...)
+        }
+      )
+      
+      plot2 <- xyplot(ppm_corrected*10 ~ as.numeric(batchtime_h), 
+        type=NA, data, ylab="ppm")
+      
+      doubleYScale(plot1, plot2, 
         use.style=FALSE, add.axis=TRUE, add.ylab2=TRUE)
-    )
+    }
     
-    output$UserDownloadCO2 <- downloadHandler(
-      filename="CO2plot.svg",
+    # print composite plot for all gas sensor types (CO, CO2, O2)
+    sensorTypes <- gsub("[0-9]$", "", data$sensor) %>% unique
+    for (i in 1:length(sensorTypes)) {
+      print(
+        drawGasPlot(subset(data, grepl(sensorTypes[[i]], sensor))), 
+        split=c(1,i,1,length(sensorTypes)),
+        more=TRUE
+      )
+    }
+    
+    
+    output$UserDownloadGas <- downloadHandler(
+      filename="GasMeasurement.svg",
       content = function(file) {
         svg(file, 
           width={if (input$UserPrintWidth=="auto") 7
             else as.numeric(input$UserPrintWidth)/100}, 
           height=as.numeric(input$UserPrintHeight)/100)
-        print(
-          doubleYScale(CO2plot, CO2plot2, 
-          use.style=FALSE, add.axis=TRUE, add.ylab2=TRUE)
-        )
+        for (i in 1:length(sensorTypes)) {
+          print(
+            drawGasPlot(subset(data, grepl(sensorTypes[[i]], sensor))), 
+            split=c(1,i,1,length(sensorTypes)),
+            more=TRUE
+          )
+        }
         dev.off()
       },
       contentType="image/svg"
