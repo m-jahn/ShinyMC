@@ -9,7 +9,7 @@ ShinyMC is a small App for monitoring bioreactor experiments. Its purpose is to 
 
 - Display of optical density (OD at 680 and 720 nm wavelength)
 - Display of growth rate calculated from OD, based on either interval growth rates (batch and continuous cultivation) or frequency of dilutions (continuous)
-- Display of temperature, light intensity, and other sensor measurements such as CO2
+- Display of temperature, light intensity, and other sensor measurements such as offgas
 - All charts are interactive R Shiny modules and can be adjusted by sliders, check boxes and many other parameters
 
 ### Structure
@@ -23,7 +23,7 @@ ShinyMC consists of a set of R scripts that determine the functionality.
 ### Input data
 
 - ShinyMC uses *.csv tables that are imported as data.frames. Valid databases are named according to the scheme 'YYYYMMDD_MCX_measurements.csv'
-- It also imports CO2 sensor measurements named 'YYYYMMDD_MCX_CO2.txt'
+- It also imports gas sensor measurements named matching the pattern '_gas.txt'
 
 ### Getting started
 
