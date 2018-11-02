@@ -588,7 +588,7 @@ server <- shinyServer(function(input, output) {
     data <- read.table(input$UserGasChoice, head=FALSE, sep=" ", fill=TRUE,
       col.names=c("ppm_raw", "ppm_corrected", "sensor", "date", "time"))
     # filter out lines with missing values
-    data <- subset(data, apply(data, 1, function(x) !any(is.na(x))))
+    data <- subset(data, apply(data, 1, function(x) !any(is.na(x) | x=="")))
     data$sensor <- gsub("tty", "", data$sensor)
     data$batchtime_h <- strptime(with(data, paste(date, time)),
       format="%Y-%m-%d %H:%M")
@@ -605,7 +605,7 @@ server <- shinyServer(function(input, output) {
     # actual plot is drawn
     drawGasPlot <- function(data){
       
-      plot1 <- xyplot(ppm_corrected/1000 ~ as.numeric(batchtime_h), data,
+      plot1 <- xyplot(as.numeric(ppm_corrected)/1000 ~ as.numeric(batchtime_h), data,
         par.settings=theme,
         groups=factor(sensor), 
         auto.key=list(cex=0.8, columns=length(unique(data$sensor))),
@@ -618,7 +618,7 @@ server <- shinyServer(function(input, output) {
         }
       )
       
-      plot2 <- xyplot(ppm_corrected*10 ~ as.numeric(batchtime_h), 
+      plot2 <- xyplot(as.numeric(ppm_corrected)*10 ~ as.numeric(batchtime_h), 
         type=NA, data, ylab="ppm")
       
       doubleYScale(plot1, plot2, 
