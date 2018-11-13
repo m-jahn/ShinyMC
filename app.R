@@ -1,3 +1,12 @@
+# ***  SHINY-MC  ***
+# A WEB APPLICATION TO MONITOR GROWTH AND CELL PHYSIOLOGY IN MULTICULTIVATOR
+# BIOREACTORS
+# 
+# author: Michael Jahn
+# affiliation: Scilifelab - KTH, Stockholm
+# date: 2018-11-13
+# github repository: https://github.com/m-jahn/ShinyMC
+#
 # This is a Shiny web application. You can run the application by clicking
 # the 'Run App' button above. Find out more about building applications here:
 # http://shiny.rstudio.com/

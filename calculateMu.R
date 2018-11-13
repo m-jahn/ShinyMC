@@ -1,20 +1,20 @@
-## CACULATE GROWTH RATE IN THREE DIFFERENT WAYS (BATCH, DILUTIONS, INTERVALS)
+# CACULATE GROWTH RATE IN THREE DIFFERENT WAYS (BATCH, DILUTIONS, INTERVALS)
 #
 #
 calculate.mu <- function(data, input, od_select) {
-  # first, mu for continuous cultivation and determination via dilution
+  # first, mu for continuous cultivation and determination via dilution events
   if (input$UserMuType == "conti - dilution") {
     # sum up dilutions over user-selected time frame (mu.time)
-    # using integer division %/%
     mu.time <- as.numeric(input$UserMuTime)
-    mu <- as.data.frame(with(data, 
-      tapply(dilution, list(batchtime_h %/% mu.time * mu.time, channel_id), sum)
-    ))
+    mu <- with(data, {
+      # first sum up dilution over full hours and then apply sliding window
+      tapply(dilution, list(round(batchtime_h), channel_id), function(x) 
+        {sum(x, na.rm=TRUE)}) %>% as.data.frame %>%
+      rollapply(., width=mu.time, by=1, FUN=sum)
+    }) %>% as.data.frame
     # multiply number of dilutions with dilution factor (V_dil/V_total)
     mu <- mu * input$UserDilFactor / mu.time
-    mu$batchtime_h <- as.numeric(rownames(mu))
-    # remove inaccurate last value
-    mu <- mu[-nrow(mu), ]
+    mu$batchtime_h <- unique(round(data$batchtime_h))[1:nrow(mu)]
     # reshape to long data.frame
     mu <- gather(mu, channel_id, value, -batchtime_h)
   }
