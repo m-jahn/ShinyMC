@@ -537,8 +537,9 @@ server <- shinyServer(function(input, output) {
       panel=function(x, y, ...) {
         panel.grid(h=-1, v=-1, col=grey(0.95))
         panel.xyplot(x, y, ...)
-        panel.text(mean(x), tail(y, 1), labels=paste0("current T = ", round(tail(y, 1), 2), " *C"),
-          pos=3, offset=1, cex=0.8, col=1)
+        panel.text(mean(input$UserXlim), max(y), 
+          labels=paste0("current T = ", round(tail(y, 1), 2), "°C"),
+          pos=3, offset=1, cex=0.7, col=grey(0.5))
       }
     )
     
