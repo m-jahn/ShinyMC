@@ -5,7 +5,7 @@ library(RSQLite)
 library(lattice)
 library(latticeExtra)
 library(tidyr)
-setwd("/home/multicultivator/multicultivator/data/")
+setdwsetwd("/home/multicultivator/multicultivator/data/")
 # rm(list=ls())
 
 
@@ -50,10 +50,10 @@ for (SQliteFile in dblist) {
     
     # For turbidostat data, also transform time
     turb$time <- strptime(turb$time, format="%Y-%m-%d %H:%M")
-    # eliminate double entries in turb data
+    # eliminate double or incomplete entries in turb data
     doubles <- with(turb, {
       time <- as.character(time)
-      time %in% names(which(table(time)>8))
+      time %in% names(which(table(time)!=8))
     })
     turb <- subset(turb, !doubles)
     
@@ -72,4 +72,6 @@ for (SQliteFile in dblist) {
   cat(paste("Saving", csvname, "to folder", getwd(),"\n\n"))
   # finally write modified csv table into data folder
   write.csv(dat, file=csvname)
+  
+  dbDisconnect(db)
 }
