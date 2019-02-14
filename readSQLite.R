@@ -5,7 +5,7 @@ library(RSQLite)
 library(lattice)
 library(latticeExtra)
 library(tidyr)
-setdwsetwd("/home/multicultivator/multicultivator/data/")
+setwd("/home/multicultivator/multicultivator/data/")
 # rm(list=ls())
 
 
