@@ -75,7 +75,7 @@ for gassensor in gassensors:
     #
     # zero calibrate to molecular nitrogen N2
     meanConc = calibrateToN2(sensor, read_command) 
-    print('Mean CO2 after blanking: ' + str(meanConc*10) + ' ppm')
+    print('Mean gas concentration after blanking: ' + str(meanConc*10) + ' ppm')
     #
     # close connection
     sensor.close()
