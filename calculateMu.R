@@ -88,9 +88,7 @@ calculate.mu <- function(data, input, od_select) {
     })
     
     # convert to data.frame
-    mu <- ldply(lapply(mu, as.data.frame))
-    mu <- as.data.frame(apply(mu, 2, function(x)
-        as.numeric(unlist(x))))
+    mu <- bind_rows(lapply(mu, as.data.frame), .id = "channel")
     colnames(mu) <-
       c(
         "channel_id",

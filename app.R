@@ -18,7 +18,7 @@ library(shiny)
 library(lattice)
 library(latticeExtra)
 library(tidyr)
-library(plyr)
+library(dplyr)
 library(zoo)
 library(shinythemes)
 source("calculateMu.R")
@@ -597,15 +597,24 @@ server <- shinyServer(function(input, output) {
     input$UserButtonGas
     # read csv tables of user selection
     data <- read.table(input$UserGasChoice, head=FALSE, sep=" ", fill=TRUE,
-      col.names=c("ppm_raw", "ppm_corrected", "sensor", "date", "time"))
-    # filter out lines with missing values
-    data <- subset(data, apply(data, 1, function(x) !any(is.na(x) | x=="")))
-    data$sensor <- gsub("tty", "", data$sensor)
-    data$batchtime_h <- strptime(with(data, paste(date, time)),
-      format="%Y-%m-%d %H:%M")
-    data$batchtime_h <- difftime(data$batchtime_h, data[1, "batchtime_h"], units="hours")
+      col.names=c("ppm_raw", "ppm_corrected", "sensor", "date", "time")) %>%
     
-
+      # multiply CO2 and O2 measurement with scaling factor (not CO)
+      mutate(ppm_raw = ifelse(grepl("CO\\_[0-9]", sensor), ppm_raw, ppm_raw*10)) %>%
+      mutate(ppm_corrected = ifelse(grepl("CO\\_[0-9]", sensor), ppm_corrected, ppm_corrected*10)) %>%
+      
+      # filter out lines with missing values
+      filter_all(all_vars(!is.na(.))) %>%
+      
+      # rename sensor
+      mutate(sensor = gsub("tty", "", sensor)) %>%
+      
+      # calculate batch time
+      mutate(batchtime_h = 
+        strptime(paste(date, time), format = "%Y-%m-%d %H:%M") %>%
+        difftime(., .[1], units = "hours")
+      )
+    
     # select theme
     if (input$UserTheme=="ggplot1") theme <- ggplot2like()
     else if (input$UserTheme=="ggplot2") theme <- custom.ggplot
@@ -616,7 +625,7 @@ server <- shinyServer(function(input, output) {
     # actual plot is drawn
     drawGasPlot <- function(data){
       
-      plot1 <- xyplot(as.numeric(ppm_corrected)/1000 ~ as.numeric(batchtime_h), data,
+      plot1 <- xyplot(as.numeric(ppm_corrected)/10000 ~ as.numeric(batchtime_h), data,
         par.settings=theme,
         groups=factor(sensor), 
         auto.key=list(cex=0.8, columns=length(unique(data$sensor))),
@@ -629,7 +638,7 @@ server <- shinyServer(function(input, output) {
         }
       )
       
-      plot2 <- xyplot(as.numeric(ppm_corrected)*10 ~ as.numeric(batchtime_h), 
+      plot2 <- xyplot(as.numeric(ppm_corrected) ~ as.numeric(batchtime_h), 
         type=NA, data, ylab="ppm")
       
       doubleYScale(plot1, plot2, 
