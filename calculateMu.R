@@ -55,7 +55,7 @@ calculate.mu <- function(data, input, od_select) {
       }
       
       # determine growth rate in intervals from local minima to maxima
-      t(mapply(function(min.pos, max.pos) {
+      mapply(function(min.pos, max.pos) {
         # in most simple case, only min and max are considered
         if (UserMinSelect == "min-max") {
           index <- c(min.pos, max.pos)} 
@@ -73,7 +73,9 @@ calculate.mu <- function(data, input, od_select) {
           length.iv = length(index),
           residuals = sd(model$residuals)
         )
-      }, min.pos, max.pos))
+      }, min.pos, max.pos) %>%
+      t %>% apply(2, unlist) %>% as.data.frame
+      
     }
     
     # growth rate is calculated by applying interval µ function
@@ -85,21 +87,14 @@ calculate.mu <- function(data, input, od_select) {
         data[[od_select]],
         input$UserMinSelect,
         input$UserMaxInterval)
-    })
-    
+    }) %>% 
     # convert to data.frame
-    mu <- bind_rows(lapply(mu, as.data.frame), .id = "channel")
-    colnames(mu) <-
-      c(
-        "channel_id",
-        "rowNumb",
-        "batchtime_h",
-        od_select,
-        "value",
-        "r.squared",
-        "length_int",
-        "residuals"
-      )
+    bind_rows(.id = "channel") %>%
+    # and set names on the fly
+    setNames(c("channel_id", "rowNumb", "batchtime_h", od_select,
+      "value", "r.squared", "length_int", "residuals"
+    ))
+    
     # filter determined growth rates by r.squared and min length of interval
     # as a quality criterion
     if (input$UserMinSelect != "min-max") {
