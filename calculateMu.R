@@ -51,7 +51,7 @@ calculate.mu <- function(data, input, od_select) {
       ## Second step: identify minima
       # interval between first and second entry in list is: seq(indices_of_maxima[1], indices_of_maxima[-1][1])
       # create dataframe with first index of interval, last index of interval and find minimum within
-      positions_dataframe <- data.frame(maxpos=indices_of_maxima[-1], start_of_interval=indices_of_maxima[1:length(indices_of_maxima)-1])
+      positions_dataframe <- data.frame(maxpos=indices_local_maxima[-1], start_of_interval=indices_local_maxima[1:length(indices_local_maxima)-1])
       positions_dataframe$minimalpos <- NA
       for(i in 1:nrow(positions_dataframe)){
         values <- od_values_y[positions_dataframe$start_of_interval[i]:positions_dataframe$maxpos[i]]
