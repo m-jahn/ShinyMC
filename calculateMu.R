@@ -37,12 +37,14 @@ calculate.mu <- function(data, input, od_select) {
       positions_before_drop <- diff(od_values_y) < (-0.01) # vector of boolean
       # filter out stretches where dilution took place over several steps, i.e. stretches of "TRUE" - keep first in stretch
       indices_local_maxima_prelim <- which(positions_before_drop)
-      differences_indices <- diff(indices_local_maxima_prelim)
-      for(i in 1:length(differences_indices)){
-        if(differences_indices[i]==1){
-          positions_before_drop[indices_local_maxima_prelim[i]+1] <- FALSE
+      if(length(indices_local_maxima_prelim)>1){
+        differences_indices <- diff(indices_local_maxima_prelim) # if only one local maximum, this gives no number
+        for(i in 1:length(differences_indices)){
+          if(differences_indices[i]==1){
+            positions_before_drop[indices_local_maxima_prelim[i]+1] <- FALSE
+            }
         }
-      }
+        }
       indices_local_maxima <- which(positions_before_drop)
       if(filter_threshold){
         indices_local_maxima <- indices_local_maxima[od_values_y[indices_local_maxima]>max_OD_value]
@@ -51,7 +53,7 @@ calculate.mu <- function(data, input, od_select) {
       ## Second step: identify minima
       # interval between first and second entry in list is: seq(indices_of_maxima[1], indices_of_maxima[-1][1])
       # create dataframe with first index of interval, last index of interval and find minimum within
-      positions_dataframe <- data.frame(maxpos=indices_local_maxima[-1], start_of_interval=indices_local_maxima[1:length(indices_local_maxima)-1])
+      positions_dataframe <- data.frame(maxpos=indices_local_maxima, start_of_interval=c(1,indices_local_maxima[1:length(indices_local_maxima)-1])) # include first position so that first maximum is also used for calculations
       positions_dataframe$minimalpos <- NA
       for(i in 1:nrow(positions_dataframe)){
         values <- od_values_y[positions_dataframe$start_of_interval[i]:positions_dataframe$maxpos[i]]
