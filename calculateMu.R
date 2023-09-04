@@ -22,60 +22,59 @@ calculate.mu <- function(data, input, od_select) {
   # second, mu for continuous cultiv. and determination via interval growth
   if (input$UserMuType == "conti - interval") {
     # function for interval growth rate calculation
-    interval.mu <- function(x, y, UserMinSelect, UserMaxInterval) {
-      # function to compute local maxima
-      # based on difference between two neighbours
-      localMaxima <- function(x) {
-        y <- diff(c(-Inf, x)) > 0
-        y <- cumsum(rle(y)$lengths)
-        y <- y[seq(1, length(y), 2)]
-        if (x[1] == x[2] | y[1] == 1) {
-          y <- y[-1]
+    # changed by U. Hoffmann, attempt to fix a few things
+    interval.mu <- function(time_x, od_values_y, max_OD_value=0.2, filter_threshold=TRUE){
+      ## input:
+      # time_x, vector: measured time values
+      # od_values_y, vector: accompanying OD values
+      # max_OD_value, default=0.2, float: local OD maxima should be above this value
+      # filter_threshold, default=TRUE, bool: should max_OD_value be applied or not?
+      ## output:
+      # data frame with the following columns: max.pos, max.x, max.y, mu, r.squared, length.iv, residuals
+      
+      ## First step: identify local maxima
+      # identify positions at which dilution took place (OD value drops), accept some downwards fluctuations in OD measurements
+      positions_before_drop <- diff(od_values_y) < (-0.01) # vector of boolean
+      # filter out stretches where dilution took place over several steps, i.e. stretches of "TRUE" - keep first in stretch
+      indices_local_maxima_prelim <- which(positions_before_drop)
+      differences_indices <- diff(indices_local_maxima_prelim)
+      for(i in 1:length(differences_indices)){
+        if(differences_indices[i]==1){
+          positions_before_drop[indices_local_maxima_prelim[i]+1] <- FALSE
         }
-        # filter local maxima by manual threshold
-        y[x[y] > UserMaxInterval]
+      }
+      indices_local_maxima <- which(positions_before_drop)
+      if(filter_threshold){
+        indices_local_maxima <- indices_local_maxima[od_values_y[indices_local_maxima]>max_OD_value]
       }
       
-      # positions of local maxima
-      max.pos <- localMaxima(y)
-      
-      # positions of local minimum in intervals
-      if (UserMinSelect %in% c("auto", "min-max")) {
-        # compute interval between two local maxima
-        intervals <-
-          mapply(seq, c(1, max.pos[-length(max.pos)] + 1), max.pos)
-        # determine minimum as local minimum of the interval
-        # to correct for lag phases
-        min.pos <- unlist(lapply(intervals, function(iv)
-          iv[which.min(y[iv])])) 
-      } else {
-        # or alternatively, minimum is n steps backward from max, user defined
-        max.pos <- max.pos[max.pos > as.numeric(UserMinSelect)]
-        min.pos <- max.pos - as.numeric(UserMinSelect)
+      ## Second step: identify minima
+      # interval between first and second entry in list is: seq(indices_of_maxima[1], indices_of_maxima[-1][1])
+      # create dataframe with first index of interval, last index of interval and find minimum within
+      positions_dataframe <- data.frame(maxpos=indices_of_maxima[-1], start_of_interval=indices_of_maxima[1:length(indices_of_maxima)-1])
+      positions_dataframe$minimalpos <- NA
+      for(i in 1:nrow(positions_dataframe)){
+        values <- od_values_y[positions_dataframe$start_of_interval[i]:positions_dataframe$maxpos[i]]
+        positions_dataframe[i,]$minimalpos <- positions_dataframe[i,]$start_of_interval + which(values==min(values))[1] -1
       }
       
-      # determine growth rate in intervals from local minima to maxima
-      mapply(function(min.pos, max.pos) {
-        # in most simple case, only min and max are considered
-        if (UserMinSelect == "min-max") {
-          index <- c(min.pos, max.pos)} 
-        else {
-          index <- seq(min.pos, max.pos)
-        }
-        index <- index[y[index] > 0]
-        model <- lm(log(y) ~ x, data.frame(x = x[index], y = y[index]))
-        list(
-          max.pos = max.pos,
-          max.x = x[max.pos],
-          max.y = y[max.pos],
-          mu = coefficients(model)[[2]],
-          r.squared = summary(model)$r.squared,
-          length.iv = length(index),
-          residuals = sd(model$residuals)
-        )
-      }, min.pos, max.pos) %>%
-      t %>% apply(2, unlist) %>% as.data.frame
-      
+      ## Third step: run linear regression on that stuff
+      positions_dataframe$slope <- NA
+      positions_dataframe$rsquared <- NA
+      positions_dataframe$length_interv <- NA
+      positions_dataframe$residuals <- NA
+      for(i in 1:nrow(positions_dataframe)){
+        indices_of_interval <- seq(positions_dataframe[i,]$minimalpos, positions_dataframe[i,]$maxpos)
+        od_values <- od_values_y[indices_of_interval]
+        time_values <- time_x[indices_of_interval]
+        linMod <- lm(log(od_values) ~ time_values)
+        positions_dataframe[i,]$slope <- linMod$coefficients[2]
+        positions_dataframe[i,]$rsquared <- summary(linMod)$r.squared
+        positions_dataframe[i,]$length_interv <- length(indices_of_interval)
+        positions_dataframe[i,]$residuals <- sd(linMod$residuals)
+      }
+      #output: data frame with the following columns: max.pos, max.x, max.y, mu, r.squared, length.iv, residuals
+      return(data.frame(max.pos=positions_dataframe$maxpos, max.x=time_x[positions_dataframe$maxpos], max.y=od_values_y[positions_dataframe$maxpos], mu=positions_dataframe$slope, r.squared=positions_dataframe$rsquared, length.iv=positions_dataframe$length_interv, residuals=positions_dataframe$residuals))
     }
     
     # growth rate is calculated by applying interval µ function
@@ -85,9 +84,8 @@ calculate.mu <- function(data, input, od_select) {
       # between minimum and maximum
       interval.mu(data$batchtime_h,
         data[[od_select]],
-        input$UserMinSelect,
         input$UserMaxInterval)
-    }) %>% 
+    }) %>% unclass(.) %>% # unclass() seems to be needed beginning from dplyr 0.7.2, compare https://github.com/tidyverse/dplyr/issues/2962
     # convert to data.frame
     bind_rows(.id = "channel") %>%
     # and set names on the fly
