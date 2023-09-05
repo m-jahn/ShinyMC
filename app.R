@@ -120,7 +120,7 @@ ui <- shinyUI(navbarPage(
             "Y scale range:", min=0.01, max=10, step=0.05, value=c(0.01, 1))
         ),
         sliderInput("UserXlim", 
-          "X scale range:", min=0, max=500, step=5, value=c(0, 100)),
+          "X scale range:", min=0, max=500, step=2.5, value=c(0, 100)),
         
         # GROWTH RATE OPTIONS
         hr(),
@@ -129,7 +129,7 @@ ui <- shinyUI(navbarPage(
           column(width=6,
             selectInput("UserMuType",
               "Type of cultivation:", c("batch mode", "conti - dilution", "conti - interval"), 
-              selected="batch mode")
+              selected="conti - interval")
           ),
           column(width=6,
             checkboxGroupInput("UserMuPlot", 

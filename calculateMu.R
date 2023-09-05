@@ -62,7 +62,7 @@ calculate.mu <- function(data, input, od_select) {
       positions_dataframe$minimalpos <- NA
       for(i in 1:nrow(positions_dataframe)){
         values <- od_values_y[positions_dataframe$start_of_interval[i]:positions_dataframe$maxpos[i]]
-        positions_dataframe[i,]$minimalpos <- positions_dataframe[i,]$start_of_interval + which(values==min(values))[1] -1
+        positions_dataframe[i,]$minimalpos <- positions_dataframe[i,]$start_of_interval + which(values==min(values, na.rm=TRUE))[1] -1 ## ignore NA values
       }
       
       ## Third step: run linear regression on that stuff
@@ -72,9 +72,10 @@ calculate.mu <- function(data, input, od_select) {
       positions_dataframe$residuals <- NA
       for(i in 1:nrow(positions_dataframe)){
         indices_of_interval <- seq(positions_dataframe[i,]$minimalpos, positions_dataframe[i,]$maxpos)
-        od_values <- od_values_y[indices_of_interval]
+        od_values <- log(od_values_y[indices_of_interval])
+        od_values[is.infinite(od_values)] <- NA
         time_values <- time_x[indices_of_interval]
-        linMod <- lm(log(od_values) ~ time_values)
+        linMod <- lm(od_values ~ time_values)
         positions_dataframe[i,]$slope <- linMod$coefficients[2]
         positions_dataframe[i,]$rsquared <- summary(linMod)$r.squared
         positions_dataframe[i,]$length_interv <- length(indices_of_interval)
