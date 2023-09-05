@@ -36,20 +36,26 @@ calculate.mu <- function(data, input, od_select) {
         ## input:
         # time_x, vector: measured time values
         # od_values_y, vector: accompanying OD values
-        # max_OD_value, default=0.2, float: local OD maxima should be above this value
-        # filter_threshold, default=TRUE, bool: should max_OD_value be applied or not?
+        # max_OD_value, default=0.2, float: local OD maxima should be above
+        # this value
+        # filter_threshold, default=TRUE, bool: should max_OD_value be applied 
+        # or not?
         ## output:
-        # data frame with the following columns: max.pos, max.x, max.y, mu, r.squared, length.iv, residuals
+        # data frame with the following columns: max.pos, max.x, max.y, mu, 
+        # r.squared, length.iv, residuals
         
         ## First step: identify local maxima
-        # identify positions at which dilution took place (OD value drops), accept some downwards fluctuations in OD measurements
+        # identify positions at which dilution took place (OD value drops), 
+        # accept some downwards fluctuations in OD measurements
         positions_before_drop <-
           diff(od_values_y) < (-0.01) # vector of boolean
-        # filter out stretches where dilution took place over several steps, i.e. stretches of "TRUE" - keep first in stretch
+        # filter out stretches where dilution took place over several steps, 
+        # i.e. stretches of "TRUE" - keep first in stretch
         indices_local_maxima_prelim <- which(positions_before_drop)
         if (length(indices_local_maxima_prelim) > 1) {
-          differences_indices <-
-            diff(indices_local_maxima_prelim) # if only one local maximum, this gives no number: only check if there is more than one local maximum
+          differences_indices <- diff(indices_local_maxima_prelim)
+          # if only one local maximum, this gives no number: 
+          # only check if there is more than one local maximum
           for (i in 1:length(differences_indices)) {
             if (differences_indices[i] == 1) {
               positions_before_drop[indices_local_maxima_prelim[i] + 1] <- FALSE
@@ -63,16 +69,20 @@ calculate.mu <- function(data, input, od_select) {
         }
         
         ## Second step: identify minima
-        # interval between first and second entry in list is: seq(indices_of_maxima[1], indices_of_maxima[-1][1])
-        # create dataframe with first index of interval, last index of interval and find minimum within
-        # problem: if no single maximum, this will throw error --> better behaviour: calculate lm for whole stretch, ignore in this case max_OD_value that defines dilution steps
+        # interval between first and second entry in list is: 
+        # seq(indices_of_maxima[1], indices_of_maxima[-1][1])
+        # create dataframe with first index of interval, last index of interval 
+        # and find minimum within
+        # problem: if no single maximum, this will throw error --> 
+        # better behaviour: calculate lm for whole stretch, ignore in this case 
+        # max_OD_value that defines dilution steps
         if (length(indices_local_maxima)) {
           positions_dataframe <-
             data.frame(
               maxpos = indices_local_maxima,
-              start_of_interval = c(1, indices_local_maxima[1:length(indices_local_maxima) -
-                                                              1])
-            ) # include first position so that first maximum is also used for calculations
+              start_of_interval = 
+                c(1, indices_local_maxima[1:length(indices_local_maxima) - 1])
+            ) # include 1st pos. so that first max. is also used for calculations
         } else {
           positions_dataframe <-
             data.frame(maxpos = c(length(od_values_y)),
@@ -83,8 +93,8 @@ calculate.mu <- function(data, input, od_select) {
           values <-
             od_values_y[positions_dataframe$start_of_interval[i]:positions_dataframe$maxpos[i]]
           positions_dataframe[i, ]$minimalpos <-
-            positions_dataframe[i, ]$start_of_interval + which(values == min(values, na.rm =
-                                                                               TRUE))[1] - 1 ## ignore NA values
+            positions_dataframe[i, ]$start_of_interval + 
+            which(values == min(values, na.rm = TRUE))[1] - 1
         }
         
         ## Third step: run linear regression on that stuff
@@ -107,7 +117,8 @@ calculate.mu <- function(data, input, od_select) {
             length(indices_of_interval)
           positions_dataframe[i, ]$residuals <- sd(linMod$residuals)
         }
-        #output: data frame with the following columns: max.pos, max.x, max.y, mu, r.squared, length.iv, residuals
+        #output: data frame with the following columns: max.pos, max.x, max.y, 
+        # mu, r.squared, length.iv, residuals
         return(
           data.frame(
             max.pos = positions_dataframe$maxpos,
@@ -129,7 +140,8 @@ calculate.mu <- function(data, input, od_select) {
       interval.mu(data$batchtime_h,
                   data[[od_select]],
                   input$UserMaxInterval)
-    }) %>% unclass(.) %>% # unclass() seems to be needed beginning from dplyr 0.7.2, compare https://github.com/tidyverse/dplyr/issues/2962
+    }) %>% unclass(.) %>% # unclass() seems to be needed beginning from 
+      # dplyr 0.7.2, compare https://github.com/tidyverse/dplyr/issues/2962
       # convert to data.frame
       bind_rows(.id = "channel") %>%
       # and set names on the fly
