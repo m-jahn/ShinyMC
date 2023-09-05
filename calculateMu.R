@@ -38,7 +38,7 @@ calculate.mu <- function(data, input, od_select) {
       # filter out stretches where dilution took place over several steps, i.e. stretches of "TRUE" - keep first in stretch
       indices_local_maxima_prelim <- which(positions_before_drop)
       if(length(indices_local_maxima_prelim)>1){
-        differences_indices <- diff(indices_local_maxima_prelim) # if only one local maximum, this gives no number
+        differences_indices <- diff(indices_local_maxima_prelim) # if only one local maximum, this gives no number: only check if there is more than one local maximum
         for(i in 1:length(differences_indices)){
           if(differences_indices[i]==1){
             positions_before_drop[indices_local_maxima_prelim[i]+1] <- FALSE
@@ -53,7 +53,12 @@ calculate.mu <- function(data, input, od_select) {
       ## Second step: identify minima
       # interval between first and second entry in list is: seq(indices_of_maxima[1], indices_of_maxima[-1][1])
       # create dataframe with first index of interval, last index of interval and find minimum within
-      positions_dataframe <- data.frame(maxpos=indices_local_maxima, start_of_interval=c(1,indices_local_maxima[1:length(indices_local_maxima)-1])) # include first position so that first maximum is also used for calculations
+      # problem: if no single maximum, this will throw error --> better behaviour: calculate lm for whole stretch, ignore in this case max_OD_value that defines dilution steps
+      if(length(indices_local_maxima)){
+        positions_dataframe <- data.frame(maxpos=indices_local_maxima, start_of_interval=c(1,indices_local_maxima[1:length(indices_local_maxima)-1])) # include first position so that first maximum is also used for calculations
+      } else {
+        positions_dataframe <- data.frame(maxpos=c(length(od_values_y)), start_of_interval=c(1))
+      }
       positions_dataframe$minimalpos <- NA
       for(i in 1:nrow(positions_dataframe)){
         values <- od_values_y[positions_dataframe$start_of_interval[i]:positions_dataframe$maxpos[i]]
